@@ -62,7 +62,7 @@ export  function LandingPage() {
             <Button variant="ghost" size="icon" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
               {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
             </Button>
-                     {user?.user===null && (
+                     {!user?.user && (
             <>
               <Button onClick={() => setShowLogin(true)}>تسجيل الدخول</Button>
               <Button variant="outline" asChild>
