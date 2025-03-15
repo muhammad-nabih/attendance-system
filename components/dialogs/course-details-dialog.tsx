@@ -34,7 +34,7 @@ export function CourseDetailsDialog({
         <DialogHeader>
           <DialogTitle>{course.name}</DialogTitle>
           <DialogDescription>
-            تم الإنشاء في {format(new Date(course.created_at), "yyyy/MM/dd", { locale: ar })}
+           تم الانشاء {format(new Date(course.created_at), "yyyy/MM/dd")}
           </DialogDescription>
         </DialogHeader>
 
@@ -122,4 +122,3 @@ export function CourseDetailsDialog({
     </Dialog>
   )
 }
-
