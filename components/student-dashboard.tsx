@@ -42,6 +42,8 @@ import {
 import { QRCodeScanner } from "@/components/qr-code-scanner"
 import { createClient } from "@/lib/supabase/client"
 import { ProfileSection } from "@/components/profile-section"
+import { CourseDetailsDialog } from "@/components/dialogs/course-details-dialog"
+
 
 export function StudentDashboard() {
   const router = useRouter()
@@ -52,6 +54,8 @@ export function StudentDashboard() {
   const [attendanceRecords, setAttendanceRecords] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("dashboard")
+  const [courseDetailsOpen, setCourseDetailsOpen] = useState(false)
+  const [selectedCourseForDetails, setSelectedCourseForDetails] = useState<string | null>(null)
 
   // الحصول على بيانات المستخدم الحالي
   useEffect(() => {
@@ -119,7 +123,7 @@ export function StudentDashboard() {
       if (error) throw error
 
       // Transform the data to a more usable format
-      const formattedCourses = data.map((item:any) => ({
+      const formattedCourses = data.map((item: any) => ({
         id: item.course.id,
         name: item.course.name,
         doctorName: item.course.doctor.name,
@@ -588,7 +592,15 @@ export function StudentDashboard() {
                         </div>
                       </CardContent>
                       <CardFooter>
-                        <Button variant="outline" size="sm" className="w-full">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full"
+                          onClick={() => {
+                            setCourseDetailsOpen(true)
+                            setSelectedCourseForDetails(course.id)
+                          }}
+                        >
                           عرض تفاصيل الدورة
                         </Button>
                       </CardFooter>
@@ -849,12 +861,7 @@ export function StudentDashboard() {
                     </div>
                   </div>
                 </CardContent>
-                <CardFooter>
-                  <Button variant="outline" size="sm" className="w-full">
-                    <FileText className="ml-2 h-4 w-4" />
-                    تنزيل التقرير
-                  </Button>
-                </CardFooter>
+
               </Card>
 
               <Card className="hover-card">
@@ -887,12 +894,7 @@ export function StudentDashboard() {
                     </div>
                   </div>
                 </CardContent>
-                <CardFooter>
-                  <Button variant="outline" size="sm" className="w-full">
-                    <FileText className="ml-2 h-4 w-4" />
-                    تنزيل الملخص
-                  </Button>
-                </CardFooter>
+
               </Card>
             </div>
           </>
@@ -913,6 +915,16 @@ export function StudentDashboard() {
           </>
         )}
       </main>
+
+      {selectedCourseForDetails && (
+        <CourseDetailsDialog
+          open={courseDetailsOpen}
+          onOpenChange={setCourseDetailsOpen}
+          course={courses.find((c) => c.id === selectedCourseForDetails)}
+          students={[user]}
+          attendanceStats={calculateCourseStats(selectedCourseForDetails)}
+        />
+      )}
 
       {/* تذييل الصفحة */}
       <footer className="border-t py-6">

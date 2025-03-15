@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { BookOpen, Calendar, BarChart3 } from "lucide-react"
+import { BookOpen, Calendar, BarChart3, Users } from "lucide-react"
 import { EditProfileDialog } from "@/components/dialogs/edit-profile-dialog"
 
 interface ProfileSectionProps {
@@ -15,7 +15,8 @@ interface ProfileSectionProps {
   stats: {
     coursesCount: number
     totalLectures: number
-    attendancePercentage: number
+    attendancePercentage?: number
+    totalStudents?: number
   }
   onUserUpdated?: () => void
 }
@@ -86,6 +87,17 @@ export function ProfileSection({ user, stats, onUserUpdated }: ProfileSectionPro
                 <BookOpen className="h-8 w-8 text-muted-foreground" />
               </div>
             </div>
+
+            {user.role === "doctor" && stats.totalStudents !== undefined && (
+              <div className="bg-muted/50 p-4 rounded-lg">
+                <h3 className="font-medium mb-2">إجمالي الطلاب</h3>
+                <div className="flex justify-between items-center">
+                  <span className="text-3xl font-bold">{stats.totalStudents}</span>
+                  <Users className="h-8 w-8 text-muted-foreground" />
+                </div>
+              </div>
+            )}
+
             <div className="bg-muted/50 p-4 rounded-lg">
               <h3 className="font-medium mb-2">إجمالي المحاضرات</h3>
               <div className="flex justify-between items-center">
@@ -93,7 +105,8 @@ export function ProfileSection({ user, stats, onUserUpdated }: ProfileSectionPro
                 <Calendar className="h-8 w-8 text-muted-foreground" />
               </div>
             </div>
-            {user.role === "student" && (
+
+            {user.role === "student" && stats.attendancePercentage !== undefined && (
               <div className="bg-muted/50 p-4 rounded-lg">
                 <h3 className="font-medium mb-2">نسبة الحضور الإجمالية</h3>
                 <div className="flex justify-between items-center">
@@ -115,3 +128,4 @@ export function ProfileSection({ user, stats, onUserUpdated }: ProfileSectionPro
     </div>
   )
 }
+
