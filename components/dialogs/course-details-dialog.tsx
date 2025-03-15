@@ -28,13 +28,14 @@ export function CourseDetailsDialog({
   students,
   attendanceStats,
 }: CourseDetailsDialogProps) {
+    console.log(course)
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle>{course.name}</DialogTitle>
-          <DialogDescription>
-           تم الانشاء {format(new Date(course.created_at), "yyyy/MM/dd")}
+          <DialogDescription className="hidden">
+         {course.name}
           </DialogDescription>
         </DialogHeader>
 
@@ -108,8 +109,8 @@ export function CourseDetailsDialog({
                 <div className="divide-y">
                   {students.map((student) => (
                     <div key={student.id} className="grid grid-cols-3 p-2">
-                      <div>{student.name}</div>
-                      <div className="text-muted-foreground">{student.email}</div>
+                      <div >{student.name}</div>
+                      <div className="text-muted-foreground text-xs">{student.email}</div>
                       <div className="font-mono text-xs">{student.id}</div>
                     </div>
                   ))}
