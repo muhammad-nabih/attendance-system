@@ -3,13 +3,10 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { LogOut } from "lucide-react"
-import { createClient } from "@supabase/supabase-js"
 
 import { Button } from "@/components/ui/button"
-import { useToast } from "@/components/ui/use-toast"
-
-// إنشاء عميل Supabase
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_KEY!)
+import { useToast } from "@/hooks/use-toast"
+import { useUser } from "@/providers/userContext"
 
 interface LogoutButtonProps {
   variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link"
@@ -17,6 +14,7 @@ interface LogoutButtonProps {
 }
 
 export function LogoutButton({ variant = "outline", size = "sm" }: LogoutButtonProps) {
+  const { user } = useUser()
   const router = useRouter()
   const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
@@ -25,27 +23,36 @@ export function LogoutButton({ variant = "outline", size = "sm" }: LogoutButtonP
     setIsLoading(true)
 
     try {
-      const { error } = await supabase.auth.signOut()
+      // Call the server-side sign-out route
+      const response = await fetch('/auth/signout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
 
-      if (error) throw error
+      if (!response.ok) {
+        throw new Error('حدث خطأ أثناء تسجيل الخروج')
+      }
 
       toast({
         title: "تم تسجيل الخروج بنجاح",
       })
 
-      // تحديث الصفحة للسماح للوسيط بإعادة التوجيه
+
       router.refresh()
-      router.push("/")
     } catch (error: any) {
       toast({
         variant: "destructive",
         title: "خطأ في تسجيل الخروج",
         description: error.message || "حدث خطأ أثناء تسجيل الخروج، يرجى المحاولة مرة أخرى",
       })
-    } finally {
       setIsLoading(false)
     }
   }
+
+  // Only show the logout button if a user is logged in
+  if (!user) return null
 
   return (
     <Button variant={variant} size={size} onClick={handleLogout} disabled={isLoading}>
@@ -54,4 +61,3 @@ export function LogoutButton({ variant = "outline", size = "sm" }: LogoutButtonP
     </Button>
   )
 }
-

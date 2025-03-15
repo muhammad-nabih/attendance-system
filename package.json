@@ -55,6 +55,7 @@
         "framer-motion": "latest",
         "html5-qrcode": "^2.3.8",
         "input-otp": "1.4.1",
+        "js-cookie": "^3.0.5",
         "jspdf": "^3.0.0",
         "jspdf-autotable": "^5.0.2",
         "lucide-react": "^0.454.0",
@@ -81,6 +82,7 @@
         "zod": "latest"
     },
     "devDependencies": {
+        "@types/js-cookie": "^3.0.6",
         "@types/node": "^22",
         "@types/react": "^18",
         "@types/react-dom": "^18",

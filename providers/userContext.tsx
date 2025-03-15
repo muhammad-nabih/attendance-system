@@ -23,6 +23,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         const getUser = async () => {
             const { data, error } = await supabase.auth.getUser();
             const { data: userData, error:userDataError } = await supabase.from("users").select("*").eq("id", data?.user?.id).single()
+            
 
 
             setUserDetails(userData);

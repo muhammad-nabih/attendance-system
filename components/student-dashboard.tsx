@@ -17,7 +17,7 @@ import {
 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { useToast } from "@/components/ui/use-toast"
+import { useToast } from "@/hooks/use-toast"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { LogoutButton } from "@/components/logout-button"
 import { useRouter } from "next/navigation"
@@ -43,12 +43,13 @@ import { QRCodeScanner } from "@/components/qr-code-scanner"
 import { createClient } from "@/lib/supabase/client"
 import { ProfileSection } from "@/components/profile-section"
 import { CourseDetailsDialog } from "@/components/dialogs/course-details-dialog"
+import { useUser } from "@/providers/userContext"
 
 
 export function StudentDashboard() {
   const router = useRouter()
   const { toast } = useToast()
-  const supabase = createClient()
+  const {supabase} = useUser()
   const [user, setUser] = useState<any>(null)
   const [courses, setCourses] = useState<any[]>([])
   const [attendanceRecords, setAttendanceRecords] = useState<any[]>([])

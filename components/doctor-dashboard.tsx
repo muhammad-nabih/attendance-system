@@ -12,7 +12,7 @@ import { AddCourseDialog } from "@/components/dialogs/add-course-dialog"
 import { AddStudentDialog } from "@/components/dialogs/add-student-dialog"
 import { CourseDetailsDialog } from "@/components/dialogs/course-details-dialog"
 import { createClient } from "@/lib/supabase/client"
-import { useToast } from "@/components/ui/use-toast"
+import { useToast } from "@/hooks/use-toast"
 import { AttendanceTable } from "@/components/attendance-table"
 import { ProfileSection } from "@/components/profile-section"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
@@ -568,7 +568,7 @@ export function DoctorDashboard() {
                     })}
                   </div>
                 </CardContent>
-        
+
               </Card>
 
               {/* تقرير الطلاب */}

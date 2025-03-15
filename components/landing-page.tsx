@@ -62,7 +62,7 @@ export  function LandingPage() {
             <Button variant="ghost" size="icon" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
               {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
             </Button>
-                     {!user?.user && (
+                     {!user && (
             <>
               <Button onClick={() => setShowLogin(true)}>تسجيل الدخول</Button>
               <Button variant="outline" asChild>
@@ -125,7 +125,9 @@ export  function LandingPage() {
                 >
                   اتصل بنا
                 </Link>
-                <Button
+
+{!user&&<>
+    <Button
                   onClick={() => {
                     setShowLogin(true)
                     setMobileMenuOpen(false)
@@ -136,6 +138,9 @@ export  function LandingPage() {
                 <Button variant="outline" asChild onClick={() => setMobileMenuOpen(false)}>
                   <Link href="/signup">إنشاء حساب</Link>
                 </Button>
+</> }
+
+
               </nav>
             </div>
           </motion.div>
@@ -200,11 +205,11 @@ export  function LandingPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
-              src="/placeholder.svg?height=400&width=500"
+              src="/main2.png"
               alt="صورة توضيحية"
               className="rounded-lg shadow-lg"
-              width={500}
-              height={400}
+              width={700}
+              height={600}
             />
           </div>
         </div>
@@ -248,11 +253,11 @@ export  function LandingPage() {
               whileInView={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5 }}
               viewport={{ once: true }}
-              src="/placeholder.svg?height=400&width=500"
+              src="/main.png"
               alt="صورة توضيحية"
               className="rounded-lg shadow-lg"
-              width={500}
-              height={400}
+              width={700}
+              height={500}
             />
           </div>
           <div className="flex flex-col justify-center space-y-4">
