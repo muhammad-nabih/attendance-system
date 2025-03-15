@@ -7,9 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/components/ui/use-toast"
-
 import { Loader2 } from "lucide-react"
-import { createClient } from "@/lib/supabase/client"
+import { createBrowserClient } from "@supabase/ssr"
 
 interface AttendanceCodeFormProps {
   studentId: string
@@ -19,7 +18,10 @@ export function AttendanceCodeForm({ studentId }: AttendanceCodeFormProps) {
   const [sessionCode, setSessionCode] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
-const supabase = createClient()
+
+  // استخدام createBrowserClient مباشرة بدلاً من استدعاء createClient
+  const supabase = createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_KEY!)
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -35,10 +37,18 @@ const supabase = createClient()
     setIsSubmitting(true)
 
     try {
-      // Verificar si el código es válido y no ha expirado
+      // التحقق من جلسة المستخدم
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      if (!session) {
+        throw new Error("يرجى تسجيل الدخول أولاً")
+      }
+
+      // التحقق من رمز الجلسة
       const { data: sessionData, error: sessionError } = await supabase
         .from("sessions")
-        .select("id, course_id, date")
+        .select("*")
         .eq("code", sessionCode)
         .eq("is_active", true)
         .gt("expires_at", new Date().toISOString())
@@ -48,47 +58,58 @@ const supabase = createClient()
         throw new Error("رمز الجلسة غير صحيح أو منتهي الصلاحية")
       }
 
-      // Verificar si el estudiante está inscrito en este curso
-      const { data: courseStudent, error: courseStudentError } = await supabase
+      // التحقق من تسجيل الطالب في الدورة
+      const { data: enrollment, error: enrollmentError } = await supabase
         .from("course_students")
         .select("id")
         .eq("student_id", studentId)
         .eq("course_id", sessionData.course_id)
         .single()
 
-      if (courseStudentError || !courseStudent) {
+      if (enrollmentError || !enrollment) {
         throw new Error("أنت غير مسجل في هذه الدورة")
       }
 
-      // Verificar si ya se ha registrado asistencia para esta sesión
-      const { data: existingAttendance, error: existingAttendanceError } = await supabase
+      // التحقق من عدم وجود سجل حضور سابق
+      const { data: existingAttendance, error: existingError } = await supabase
         .from("attendance")
         .select("id")
         .eq("student_id", studentId)
-        .eq("session_id", sessionData.id)
+        .eq("course_id", sessionData.course_id)
+        .eq("date", sessionData.date)
         .maybeSingle()
 
       if (existingAttendance) {
         throw new Error("تم تسجيل حضورك مسبقاً لهذه الجلسة")
       }
 
-      // Registrar la asistencia
-      const { error: insertError } = await supabase.from("attendance").insert({
+      // تسجيل الحضور
+      console.log("Inserting attendance record:", {
         student_id: studentId,
         course_id: sessionData.course_id,
-        session_id: sessionData.id,
         date: sessionData.date,
         status: "present",
       })
 
-      if (insertError) throw insertError
+      const { error: attendanceError } = await supabase.from("attendance").insert([
+        {
+          student_id: studentId,
+          course_id: sessionData.course_id,
+          date: sessionData.date,
+          status: "present",
+        },
+      ])
+
+      if (attendanceError) {
+        console.error("Attendance insert error:", attendanceError)
+        throw new Error(`خطأ في تسجيل الحضور: ${attendanceError.message}`)
+      }
 
       toast({
         title: "تم تسجيل الحضور بنجاح",
         description: "تم تسجيل حضورك للجلسة بنجاح",
       })
 
-      // Limpiar el formulario
       setSessionCode("")
     } catch (error: any) {
       console.error("Error recording attendance:", error)
@@ -138,3 +159,4 @@ const supabase = createClient()
     </Card>
   )
 }
+

@@ -1,14 +1,19 @@
 "use client"
 
 import { useState } from "react"
-// import { QRCode } from "qrcode.react"
+
+import QRCodeReact from "react-qr-code"
+
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { Clipboard, Check } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
-import { QRCodeScanner } from "@/components/qr-code-scanner"
+import { createClient } from "@supabase/supabase-js"
+import { useUser } from "@/providers/userContext"
+
+
 
 interface QRCodeGeneratorProps {
   courses: {
@@ -17,31 +22,89 @@ interface QRCodeGeneratorProps {
   }[]
 }
 
-export default function QRCodeGenerator({ courses }: any) {
+export function QRCodeGenerator({ courses }: QRCodeGeneratorProps) {
   const { toast } = useToast()
   const [selectedCourse, setSelectedCourse] = useState("")
   const [sessionId, setSessionId] = useState("1")
   const [copied, setCopied] = useState(false)
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [generatedCode, setGeneratedCode] = useState("")
+  const [qrData, setQrData] = useState("")
+  const {supabase} = useUser()
 
-  // Obtener la fecha actual en formato YYYY-MM-DD
-  const today = new Date().toISOString().split("T")[0]
-
-  // Generar los datos para el código QR
-  const qrData = selectedCourse
-    ? JSON.stringify({
-        courseId: selectedCourse,
-        date: today,
-        sessionId: sessionId,
+  // Generate a unique session code
+  const generateSessionCode = async () => {
+    if (!selectedCourse) {
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: "الرجاء اختيار المادة أولاً",
       })
-    : ""
+      return
+    }
 
-  // Generar el código de sesión para entrada manual
-  const sessionCode = selectedCourse ? `${selectedCourse}-${today}-${sessionId}` : ""
+    setIsGenerating(true)
+
+    try {
+      // Get the current user
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser()
+      if (userError) throw userError
+
+      // Generate a random 6-digit code
+      const code = Math.floor(100000 + Math.random() * 900000).toString()
+
+      // Create a new session
+      const { data: session, error: sessionError } = await supabase
+        .from("sessions")
+        .insert([
+          {
+            code,
+            course_id: selectedCourse,
+            date: new Date().toISOString().split("T")[0],
+            session_number: Number.parseInt(sessionId),
+            created_by: user?.id,
+            expires_at: new Date(Date.now() + 3600000).toISOString(), // Expires in 1 hour
+            is_active: true,
+          },
+        ])
+        .select()
+        .single()
+
+      if (sessionError) throw sessionError
+
+      // Generate QR data
+      const qrData = JSON.stringify({
+        code,
+        courseId: selectedCourse,
+        sessionId: session.id,
+      })
+
+      setGeneratedCode(code)
+      setQrData(qrData)
+
+      toast({
+        title: "تم إنشاء الرمز بنجاح",
+        description: "يمكن للطلاب استخدام هذا الرمز لتسجيل الحضور",
+      })
+    } catch (error: any) {
+      console.error("Error generating session code:", error)
+      toast({
+        variant: "destructive",
+        title: "خطأ في إنشاء الرمز",
+        description: error.message || "حدث خطأ أثناء إنشاء رمز الجلسة، يرجى المحاولة مرة أخرى",
+      })
+    } finally {
+      setIsGenerating(false)
+    }
+  }
 
   const handleCopyCode = () => {
-    if (!sessionCode) return
+    if (!generatedCode) return
 
-    navigator.clipboard.writeText(sessionCode)
+    navigator.clipboard.writeText(generatedCode)
     setCopied(true)
 
     toast({
@@ -66,7 +129,7 @@ export default function QRCodeGenerator({ courses }: any) {
               <SelectValue placeholder="اختر المادة" />
             </SelectTrigger>
             <SelectContent>
-              {courses.map((course:any) => (
+              {courses.map((course) => (
                 <SelectItem key={course.id} value={course.id}>
                   {course.name}
                 </SelectItem>
@@ -91,19 +154,23 @@ export default function QRCodeGenerator({ courses }: any) {
           </Select>
         </div>
 
-        {selectedCourse && (
+        <Button className="w-full" onClick={generateSessionCode} disabled={isGenerating || !selectedCourse}>
+          {isGenerating ? "جاري إنشاء الرمز..." : "إنشاء رمز الحضور"}
+        </Button>
+
+        {qrData && (
           <>
             <div className="flex justify-center py-4">
               <div className="bg-white p-4 rounded-lg">
-                <QRCodeScanner value={qrData} size={200} />
+                <QRCodeReact value={qrData} size={200} level="H" />
               </div>
             </div>
 
             <div className="space-y-2">
               <Label>رمز الحضور للإدخال اليدوي</Label>
               <div className="flex items-center">
-                <div className="flex-1 p-2 border rounded-l-md bg-muted font-mono text-sm overflow-x-auto whitespace-nowrap dir-ltr">
-                  {sessionCode}
+                <div className="flex-1 p-2 border rounded-l-md bg-muted font-mono text-xl text-center overflow-x-auto whitespace-nowrap">
+                  {generatedCode}
                 </div>
                 <Button variant="outline" size="icon" className="rounded-l-none" onClick={handleCopyCode}>
                   {copied ? <Check className="h-4 w-4" /> : <Clipboard className="h-4 w-4" />}

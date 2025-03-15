@@ -1,3 +1,5 @@
+// Attendance code generator component
+
 "use client"
 
 import { useState } from "react"
@@ -163,3 +165,4 @@ const supabase = createClient()
     </Card>
   )
 }
+

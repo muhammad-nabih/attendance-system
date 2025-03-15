@@ -41,145 +41,129 @@ import {
 
 import { QRCodeScanner } from "@/components/qr-code-scanner"
 import { createClient } from "@/lib/supabase/client"
-
-
-// إنشاء عميل Supabase
-// const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_KEY!)
+import { ProfileSection } from "@/components/profile-section"
 
 export function StudentDashboard() {
+  const router = useRouter()
   const { toast } = useToast()
+  const supabase = createClient()
   const [user, setUser] = useState<any>(null)
-  const [attendanceRecords, setAttendanceRecords] = useState<any[]>([])
   const [courses, setCourses] = useState<any[]>([])
+  const [attendanceRecords, setAttendanceRecords] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("dashboard")
-  const router = useRouter()
-
-
-   const supabase =  createClient()
 
   // الحصول على بيانات المستخدم الحالي
   useEffect(() => {
-    async function getUserData() {
+    const fetchUser = async () => {
       try {
         const {
-          data: { user },
+          data: { user: authUser },
+          error: authError,
         } = await supabase.auth.getUser()
+        if (authError) throw authError
 
-        if (!user) return
-
-        const { data, error } = await supabase.from("users").select("*").eq("id", user.id).single()
-
-        if (error) throw error
-
-        setUser(data)
-      } catch (error) {
-        console.error("Error fetching user:", error)
-        // في حالة حدوث خطأ، قم بتسجيل الخروج
-        await supabase.auth.signOut()
-        router.push("/")
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    getUserData()
-  }, [])
-
-  // الحصول على سجلات الحضور للطالب
-  useEffect(() => {
-    async function fetchAttendanceRecords() {
-      if (!user) return
-
-      try {
-        // استخدام استعلام بسيط بدون أي علاقات
-        const { data, error } = await supabase
-          .from("attendance")
-          .select("id, student_id, course_id, date, status, created_at, session_id")
-          .eq("student_id", user.id)
-          .order("date", { ascending: false })
-
-        if (error) throw error
-
-        setAttendanceRecords(data || [])
-      } catch (error: any) {
-        console.error("Error fetching attendance records:", error)
-        toast({
-          variant: "destructive",
-          title: "خطأ في جلب سجلات الحضور",
-          description: "حدث خطأ أثناء جلب سجلات الحضور، يرجى المحاولة مرة أخرى",
-        })
-      }
-    }
-
-    if (user) {
-      fetchAttendanceRecords()
-    }
-  }, [user])
-
-  // الحصول على الدورات التي يشارك فيها الطالب
-  useEffect(() => {
-    async function fetchCourses() {
-      if (!user) return
-
-      try {
-        // الحصول على معرفات الدورات التي يشارك فيها الطالب
-        const { data: courseStudents, error: courseStudentsError } = await supabase
-          .from("course_students")
-          .select("course_id")
-          .eq("student_id", user.id)
-
-        if (courseStudentsError) throw courseStudentsError
-
-        if (!courseStudents || courseStudents.length === 0) {
-          setCourses([])
+        if (!authUser) {
+          router.push("/login")
           return
         }
 
-        // استخراج معرفات الدورات
-        const courseIds = courseStudents.map((item) => item.course_id)
-
-        // الحصول على بيانات الدورات
-        const { data: coursesData, error: coursesError } = await supabase
-          .from("courses")
-          .select("id, name, doctor_id")
-          .in("id", courseIds)
-
-        if (coursesError) throw coursesError
-
-        // الحصول على أسماء الدكاترة
-        const doctorIds = coursesData.map((course) => course.doctor_id)
-        const { data: doctorsData, error: doctorsError } = await supabase
+        // Get user details from the users table
+        const { data: userData, error: userError } = await supabase
           .from("users")
-          .select("id, name")
-          .in("id", doctorIds)
+          .select("*")
+          .eq("id", authUser.id)
+          .single()
 
-        if (doctorsError) throw doctorsError
+        if (userError) throw userError
 
-        // دمج بيانات الدورات مع أسماء الدكاترة
-        const coursesWithDoctors = coursesData.map((course) => {
-          const doctor = doctorsData.find((d) => d.id === course.doctor_id)
-          return {
-            ...course,
-            doctor_name: doctor ? doctor.name : "غير معروف",
-          }
-        })
+        if (userData.role !== "student") {
+          router.push("/")
+          return
+        }
 
-        setCourses(coursesWithDoctors || [])
+        setUser(userData)
+        fetchStudentCourses(userData.id)
+        fetchStudentAttendance(userData.id)
       } catch (error: any) {
-        console.error("Error fetching courses:", error)
+        console.error("Error fetching user:", error)
         toast({
           variant: "destructive",
-          title: "خطأ في جلب الدورات",
-          description: "حدث خطأ أثناء جلب الدورات، يرجى المحاولة مرة أخرى",
+          title: "خطأ في تحميل البيانات",
+          description: "حدث خطأ أثناء تحميل بيانات المستخدم",
         })
+        router.push("/login")
       }
     }
 
-    if (user) {
-      fetchCourses()
+    fetchUser()
+  }, [router, supabase, toast])
+
+  // Fetch courses for the student
+  const fetchStudentCourses = async (studentId: string) => {
+    setIsLoading(true)
+    try {
+      const { data, error } = await supabase
+        .from("course_students")
+        .select(`
+          course:course_id(
+            id,
+            name,
+            doctor:doctor_id(
+              name
+            )
+          )
+        `)
+        .eq("student_id", studentId)
+
+      if (error) throw error
+
+      // Transform the data to a more usable format
+      const formattedCourses = data.map((item:any) => ({
+        id: item.course.id,
+        name: item.course.name,
+        doctorName: item.course.doctor.name,
+      }))
+
+      setCourses(formattedCourses)
+    } catch (error: any) {
+      console.error("Error fetching courses:", error)
+      toast({
+        variant: "destructive",
+        title: "خطأ في تحميل الدورات",
+        description: "حدث خطأ أثناء تحميل قائمة الدورات",
+      })
+    } finally {
+      setIsLoading(false)
     }
-  }, [user])
+  }
+
+  // Fetch attendance records for the student
+  const fetchStudentAttendance = async (studentId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from("attendance")
+        .select(`
+          id,
+          date,
+          status,
+          course_id
+        `)
+        .eq("student_id", studentId)
+        .order("date", { ascending: false })
+
+      if (error) throw error
+
+      setAttendanceRecords(data || [])
+    } catch (error: any) {
+      console.error("Error fetching attendance:", error)
+      toast({
+        variant: "destructive",
+        title: "خطأ في تحميل سجلات الحضور",
+        description: "حدث خطأ أثناء تحميل سجلات الحضور",
+      })
+    }
+  }
 
   // حساب إحصائيات الحضور
   const calculateStats = () => {
@@ -237,6 +221,40 @@ export function StudentDashboard() {
   // الحصول على الحرف الأول من اسم المستخدم
   const getInitials = (name: string) => {
     return name ? name.charAt(0).toUpperCase() : "U"
+  }
+
+  // Function to refresh user data
+  const refreshUserData = async () => {
+    try {
+      const {
+        data: { user: authUser },
+      } = await supabase.auth.getUser()
+      if (authUser) {
+        const { data: userData, error: userError } = await supabase
+          .from("users")
+          .select("*")
+          .eq("id", authUser.id)
+          .single()
+
+        if (userError) {
+          console.error("Error fetching user data:", userError)
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Failed to refresh user data.",
+          })
+        } else {
+          setUser(userData)
+        }
+      }
+    } catch (error: any) {
+      console.error("Error refreshing user:", error)
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to refresh user data.",
+      })
+    }
   }
 
   if (isLoading) {
@@ -381,7 +399,7 @@ export function StudentDashboard() {
       <main className="flex-1 container py-8">
         {activeTab === "dashboard" && (
           <>
-            <DashboardHeader heading={`مرحباً، ${user.name}`} text="إليك ��لخص حضورك">
+            <DashboardHeader heading={`مرحباً، ${user.name}`} text="إليك ملخص حضورك">
               <Dialog>
                 <DialogTrigger asChild>
                   <Button>
@@ -507,7 +525,7 @@ export function StudentDashboard() {
                       <div key={course.id} className="flex items-center justify-between">
                         <div>
                           <p className="font-medium">{course.name}</p>
-                          <p className="text-sm text-muted-foreground">د. {course.doctor_name}</p>
+                          <p className="text-sm text-muted-foreground">د. {course.doctorName}</p>
                         </div>
                         <Badge variant="outline">{calculateCourseStats(course.id).presentPercentage}%</Badge>
                       </div>
@@ -537,12 +555,12 @@ export function StudentDashboard() {
                   const courseStats = calculateCourseStats(course.id)
                   return (
                     <Card key={course.id} className="overflow-hidden hover-card">
-                      <div className="h-32 gradient-bg flex items-center justify-center">
+                      <div className="h-32 bg-gradient-to-r from-primary/20 to-primary/10 flex items-center justify-center">
                         <BookOpen className="h-12 w-12 text-primary/70" />
                       </div>
                       <CardHeader>
                         <CardTitle>{course.name}</CardTitle>
-                        <CardDescription>د. {course.doctor_name}</CardDescription>
+                        <CardDescription>د. {course.doctorName}</CardDescription>
                       </CardHeader>
                       <CardContent>
                         <div className="space-y-4">
@@ -883,84 +901,15 @@ export function StudentDashboard() {
         {activeTab === "profile" && (
           <>
             <DashboardHeader heading="الملف الشخصي" text="عرض وتعديل بياناتك الشخصية" />
-
-            <div className="grid gap-6 md:grid-cols-2 mt-6">
-              <Card className="hover-card">
-                <CardHeader>
-                  <CardTitle>المعلومات الشخصية</CardTitle>
-                  <CardDescription>عرض وتعديل معلوماتك الشخصية</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-col items-center mb-6">
-                    <Avatar className="h-24 w-24 mb-4">
-                      <AvatarImage
-                        src={`https://api.dicebear.com/7.x/initials/svg?seed=${user.name}`}
-                        alt={user.name}
-                      />
-                      <AvatarFallback className="text-2xl">{getInitials(user.name)}</AvatarFallback>
-                    </Avatar>
-                    <h2 className="text-xl font-bold">{user.name}</h2>
-                    <p className="text-muted-foreground">{user.email}</p>
-                    <Badge className="mt-2">{user.role === "student" ? "طالب" : "دكتور"}</Badge>
-                  </div>
-                  <div className="space-y-4">
-                    <div className="flex justify-between">
-                      <span className="font-medium">الاسم:</span>
-                      <span>{user.name}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="font-medium">البريد الإلكتروني:</span>
-                      <span>{user.email}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="font-medium">نوع المستخدم:</span>
-                      <span>{user.role === "student" ? "طالب" : "دكتور"}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="font-medium">تاريخ الانضمام:</span>
-                      <span>{format(new Date(user.created_at || new Date()), "yyyy/MM/dd", { locale: ar })}</span>
-                    </div>
-                  </div>
-                </CardContent>
-                <CardFooter>
-                  <Button variant="outline" size="sm" className="w-full">
-                    تعديل المعلومات الشخصية
-                  </Button>
-                </CardFooter>
-              </Card>
-
-              <Card className="hover-card">
-                <CardHeader>
-                  <CardTitle>إحصائيات الحساب</CardTitle>
-                  <CardDescription>إحصائيات حسابك</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="bg-muted/50 p-4 rounded-lg">
-                      <h3 className="font-medium mb-2">الدورات المسجلة</h3>
-                      <div className="flex justify-between items-center">
-                        <span className="text-3xl font-bold">{courses.length}</span>
-                        <BookOpen className="h-8 w-8 text-muted-foreground" />
-                      </div>
-                    </div>
-                    <div className="bg-muted/50 p-4 rounded-lg">
-                      <h3 className="font-medium mb-2">إجمالي المحاضرات</h3>
-                      <div className="flex justify-between items-center">
-                        <span className="text-3xl font-bold">{stats.total}</span>
-                        <Calendar className="h-8 w-8 text-muted-foreground" />
-                      </div>
-                    </div>
-                    <div className="bg-muted/50 p-4 rounded-lg">
-                      <h3 className="font-medium mb-2">نسبة الحضور الإجمالية</h3>
-                      <div className="flex justify-between items-center">
-                        <span className="text-3xl font-bold">{stats.presentPercentage}%</span>
-                        <BarChart3 className="h-8 w-8 text-muted-foreground" />
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+            <ProfileSection
+              user={user}
+              stats={{
+                coursesCount: courses.length,
+                totalLectures: stats.total,
+                attendancePercentage: stats.presentPercentage,
+              }}
+              onUserUpdated={refreshUserData}
+            />
           </>
         )}
       </main>

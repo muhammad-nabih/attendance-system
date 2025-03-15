@@ -1,241 +1,188 @@
 "use client"
 
 import { useState } from "react"
-import { Check, X, Clock, Filter, Search } from "lucide-react"
-import { createClient } from "@supabase/supabase-js"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useToast } from "@/components/ui/use-toast"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { useToast } from "@/components/ui/use-toast"
+import { createClient } from "@/lib/supabase/client"
+import { MoreHorizontal, Check, Clock, X } from "lucide-react"
 
-// إنشاء عميل Supabase
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_KEY!)
-
-interface AttendanceTableProps {
-  attendanceRecords: any[]
-  students: any[]
-  courseId: string
+interface AttendanceRecord {
+  id: string
   date: string
+  status: "present" | "absent" | "late"
+  student: {
+    id: string
+    name: string
+    email: string
+  }
 }
 
-export function AttendanceTable({ attendanceRecords, students, courseId, date }: AttendanceTableProps) {
+interface AttendanceTableProps {
+  records: AttendanceRecord[]
+  onRecordUpdated?: () => void
+}
+
+export function AttendanceTable({ records, onRecordUpdated }: AttendanceTableProps) {
   const { toast } = useToast()
-  const [isUpdating, setIsUpdating] = useState<Record<string, boolean>>({})
-  const [searchTerm, setSearchTerm] = useState("")
-  const [statusFilter, setStatusFilter] = useState<string>("all")
+  const [isUpdating, setIsUpdating] = useState<string | null>(null)
+  const supabase = createClient()
 
-  // تغيير حالة الحضور
-  const handleStatusChange = async (studentId: string, status: "present" | "absent" | "late", recordId?: string) => {
-    if (!courseId) return
-
-    setIsUpdating({ ...isUpdating, [studentId]: true })
-
-    try {
-      if (recordId) {
-        // تحديث سجل موجود
-        const { error } = await supabase.from("attendance").update({ status }).eq("id", recordId)
-
-        if (error) throw error
-      } else {
-        // إنشاء سجل جديد
-        const { error } = await supabase.from("attendance").insert([
-          {
-            student_id: studentId,
-            course_id: courseId,
-            date,
-            status,
-            session_id: new Date().toISOString(), // استخدام الوقت الحالي كمعرف للجلسة
-          },
-        ])
-
-        if (error) throw error
+  // Group records by date
+  const recordsByDate = records.reduce(
+    (acc, record) => {
+      const date = record.date
+      if (!acc[date]) {
+        acc[date] = []
       }
+      acc[date].push(record)
+      return acc
+    },
+    {} as Record<string, AttendanceRecord[]>,
+  )
 
-      toast({
-        title: "تم تحديث الحضور بنجاح",
-        description: `تم تحديث حالة الطالب إلى ${
-          status === "present" ? "حاضر" : status === "absent" ? "غائب" : "متأخر"
-        }`,
-        variant: "default",
-      })
+  // Sort dates in descending order
+  const sortedDates = Object.keys(recordsByDate).sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
 
-      // إعادة تحميل البيانات
-      const { data, error } = await supabase
-        .from("attendance")
-        .select("id, student_id, course_id, date, status, created_at, session_id")
-        .eq("course_id", courseId)
-        .order("date", { ascending: false })
+  const updateAttendanceStatus = async (recordId: string, status: "present" | "absent" | "late") => {
+    setIsUpdating(recordId)
+    try {
+      const { error } = await supabase.from("attendance").update({ status }).eq("id", recordId)
 
       if (error) throw error
 
-      // تحديث البيانات في الواجهة
-      attendanceRecords = data || []
+      toast({
+        title: "تم تحديث الحضور",
+        description: "تم تحديث حالة الحضور بنجاح",
+      })
+
+      // Update the local state or refetch
+      if (onRecordUpdated) {
+        onRecordUpdated()
+      }
     } catch (error: any) {
+      console.error("Error updating attendance:", error)
       toast({
         variant: "destructive",
         title: "خطأ في تحديث الحضور",
-        description: error.message || "حدث خطأ أثناء تحديث حالة الحضور، يرجى المحاولة مرة أخرى",
+        description: error.message || "حدث خطأ أثناء تحديث حالة الحضور",
       })
     } finally {
-      setIsUpdating({ ...isUpdating, [studentId]: false })
+      setIsUpdating(null)
     }
   }
 
-  // الحصول على حالة حضور طالب معين في تاريخ معين
-  const getStudentAttendanceStatus = (
-    studentId: string,
-  ): { status: "present" | "absent" | "late" | null; recordId: string | null } => {
-    const record = attendanceRecords.find((record) => record.student_id === studentId && record.date === date)
-
-    return record ? { status: record.status, recordId: record.id } : { status: null, recordId: null }
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "present":
+        return <Check className="h-4 w-4 text-green-600" />
+      case "late":
+        return <Clock className="h-4 w-4 text-yellow-600" />
+      case "absent":
+        return <X className="h-4 w-4 text-red-600" />
+      default:
+        return null
+    }
   }
 
-  // الحصول على الحرف الأول من اسم المستخدم
-  const getInitials = (name: string) => {
-    return name ? name.charAt(0).toUpperCase() : "U"
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case "present":
+        return "حاضر"
+      case "late":
+        return "متأخر"
+      case "absent":
+        return "غائب"
+      default:
+        return status
+    }
   }
 
-  // تصفية الطلاب حسب البحث والحالة
-  const filteredStudents = students.filter((student) => {
-    const matchesSearch =
-      student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      student.email.toLowerCase().includes(searchTerm.toLowerCase())
-
-    if (statusFilter === "all") return matchesSearch
-
-    const { status } = getStudentAttendanceStatus(student.id)
-    return matchesSearch && status === statusFilter
-  })
-
-  if (!students || students.length === 0) {
-    return <div className="flex justify-center p-4">لا يوجد طلاب في هذه الدورة</div>
+  if (records.length === 0) {
+    return <div className="text-center py-8 text-muted-foreground">لا توجد سجلات حضور حتى الآن</div>
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="بحث عن طالب..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-3 pr-9"
-          />
-        </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="تصفية حسب الحالة" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">جميع الحالات</SelectItem>
-            <SelectItem value="present">حاضر</SelectItem>
-            <SelectItem value="absent">غائب</SelectItem>
-            <SelectItem value="late">متأخر</SelectItem>
-            <SelectItem value={""}>غير مسجل</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[100px]">الرقم</TableHead>
-              <TableHead>اسم الطالب</TableHead>
-              <TableHead>البريد الإلكتروني</TableHead>
-              <TableHead>الحالة</TableHead>
-              <TableHead className="text-left">تغيير الحالة</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredStudents.map((student, index) => {
-              const { status, recordId } = getStudentAttendanceStatus(student.id)
-
-              return (
-                <TableRow key={student.id}>
-                  <TableCell className="font-medium">{index + 1}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Avatar className="h-8 w-8">
-                        <AvatarImage
-                          src={`https://api.dicebear.com/7.x/initials/svg?seed=${student.name}`}
-                          alt={student.name}
-                        />
-                        <AvatarFallback>{getInitials(student.name)}</AvatarFallback>
-                      </Avatar>
-                      <span>{student.name}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>{student.email}</TableCell>
-                  <TableCell>
-                    {status === "present" ? (
-                      <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
-                        <Check className="ml-2 h-4 w-4 text-green-500" />
-                        <span>حاضر</span>
-                      </Badge>
-                    ) : status === "absent" ? (
-                      <Badge className="bg-red-100 text-red-800 hover:bg-red-100">
-                        <X className="ml-2 h-4 w-4 text-red-500" />
-                        <span>غائب</span>
-                      </Badge>
-                    ) : status === "late" ? (
-                      <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">
-                        <Clock className="ml-2 h-4 w-4 text-yellow-500" />
-                        <span>متأخر</span>
-                      </Badge>
-                    ) : (
-                      <span className="text-muted-foreground">غير مسجل</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
+    <div className="space-y-8">
+      {sortedDates.map((date) => (
+        <div key={date} className="space-y-2">
+          <h3 className="font-medium text-lg">
+            {new Date(date).toLocaleDateString("ar-EG", {
+              weekday: "long",
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            })}
+          </h3>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>الطالب</TableHead>
+                  <TableHead>البريد الإلكتروني</TableHead>
+                  <TableHead>الحالة</TableHead>
+                  <TableHead className="w-[80px]"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {recordsByDate[date].map((record) => (
+                  <TableRow key={record.id}>
+                    <TableCell>{record.student.name}</TableCell>
+                    <TableCell>{record.student.email}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        {getStatusIcon(record.status)}
+                        <span
+                          className={`
+                          ${
+                            record.status === "present"
+                              ? "text-green-600"
+                              : record.status === "late"
+                                ? "text-yellow-600"
+                                : "text-red-600"
+                          }
+                        `}
+                        >
+                          {getStatusText(record.status)}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="outline" size="sm" disabled={isUpdating[student.id]}>
-                            {isUpdating[student.id] ? (
-                              "جاري التحديث..."
+                          <Button variant="ghost" size="icon" disabled={isUpdating === record.id}>
+                            {isUpdating === record.id ? (
+                              <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                             ) : (
-                              <>
-                                <Filter className="ml-2 h-4 w-4" />
-                                تغيير الحالة
-                              </>
+                              <MoreHorizontal className="h-4 w-4" />
                             )}
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() => handleStatusChange(student.id, "present", recordId || undefined)}
-                          >
-                            <Check className="ml-2 h-4 w-4 text-green-500" />
-                            تسجيل حضور
+                          <DropdownMenuItem onClick={() => updateAttendanceStatus(record.id, "present")}>
+                            <Check className="ml-2 h-4 w-4 text-green-600" />
+                            تعيين كحاضر
                           </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => handleStatusChange(student.id, "absent", recordId || undefined)}
-                          >
-                            <X className="ml-2 h-4 w-4 text-red-500" />
-                            تسجيل غياب
+                          <DropdownMenuItem onClick={() => updateAttendanceStatus(record.id, "late")}>
+                            <Clock className="ml-2 h-4 w-4 text-yellow-600" />
+                            تعيين كمتأخر
                           </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => handleStatusChange(student.id, "late", recordId || undefined)}
-                          >
-                            <Clock className="ml-2 h-4 w-4 text-yellow-500" />
-                            تسجيل تأخير
+                          <DropdownMenuItem onClick={() => updateAttendanceStatus(record.id, "absent")}>
+                            <X className="ml-2 h-4 w-4 text-red-600" />
+                            تعيين كغائب
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              )
-            })}
-          </TableBody>
-        </Table>
-      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      ))}
     </div>
   )
 }
+

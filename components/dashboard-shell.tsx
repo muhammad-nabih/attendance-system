@@ -1,3 +1,5 @@
+// Dashboard shell component
+
 import type React from "react"
 interface DashboardShellProps {
   children: React.ReactNode
