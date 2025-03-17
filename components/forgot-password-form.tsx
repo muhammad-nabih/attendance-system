@@ -30,7 +30,7 @@ export function ForgotPasswordForm() {
   const resetPasswordMutation = useMutation({
     mutationFn: async (values: ForgotPasswordFormValues) => {
       const { error } = await supabase.auth.resetPasswordForEmail(values.email, {
-        redirectTo: `${window.location.origin}/auth/callback`, // تم التعديل هنا
+        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
       })
 
       if (error) throw error

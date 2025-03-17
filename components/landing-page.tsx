@@ -5,19 +5,53 @@ import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
 import { ChevronRight, CheckCircle, Menu, X, Moon, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
+import { useQuery } from "@tanstack/react-query"
+import LOGO from "@/public/LOGO.png"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { LoginForm } from "@/components/login-form"
-import { createClient } from "@/lib/supabase/client"
 import { useUser } from "@/providers/userContext"
+import Image from "next/image"
 
-export  function LandingPage() {
+export function LandingPage() {
   const [showLogin, setShowLogin] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const { theme, setTheme } = useTheme()
-  const { user, supabase,userDetails }=useUser()
+  const { user, supabase, userDetails } = useUser()
 
+  // Typing effect state
+  const [typedText, setTypedText] = useState("")
+  const fullText = "نظام حضور متكامل لمعهد راية"
+  const [isTypingComplete, setIsTypingComplete] = useState(false)
+
+
+  const { data: currentUser, isLoading: isUserLoading } = useQuery({
+    queryKey: ["currentUser"],
+    queryFn: async () => {
+      const { data } = await supabase.auth.getUser()
+      return data?.user || null
+    },
+    enabled: !!supabase,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+  })
+
+  // Determine if user is logged in based on both context and query
+  const isLoggedIn = !!user || !!currentUser
+
+  // Typing effect implementation
+  useEffect(() => {
+    if (typedText.length < fullText.length) {
+      const timeout = setTimeout(() => {
+        setTypedText(fullText.slice(0, typedText.length + 1))
+      }, 100) // Slower typing for heading (100ms)
+
+      return () => clearTimeout(timeout)
+    } else {
+      setIsTypingComplete(true)
+    }
+  }, [typedText, fullText])
 
   const features = [
     {
@@ -26,15 +60,15 @@ export  function LandingPage() {
     },
     {
       title: "تقارير مفصلة",
-      description: "احصل على تقارير مفصلة عن حضور الطلاب وتصديرها بتنسيق Excel",
+      description: "احصل على تقارير مفصلة عن حضور الطلاب والدورات التدريبية",
     },
     {
       title: "واجهة سهلة الاستخدام",
       description: "واجهة مستخدم بسيطة وسهلة الاستخدام للطلاب والدكاترة",
     },
     {
-      title: "إشعارات فورية",
-      description: "إرسال إشعارات للطلاب عند تسجيل الحضور أو الغياب",
+      title: "تسجيل الحضور بالمسح بالباركود",
+      description: "تسجيل حضور الطلاب في الدورات التدريبية باستخدام الباركود ورمز الجلسة",
     },
   ]
 
@@ -44,8 +78,8 @@ export  function LandingPage() {
       <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-16 items-center justify-between">
           <div className="flex items-center gap-2 font-bold text-xl">
-            <img src="/placeholder.svg?height=32&width=32" alt="شعار" className="h-8 w-8" />
-            <span>نظام حضور معهد راية</span>
+            <Image src={LOGO} alt="شعار" className="h-8 w-8" />
+            <Link href={'/'} >نظام حضور معهد راية</Link>
           </div>
 
           {/* قائمة التنقل للشاشات الكبيرة */}
@@ -62,16 +96,14 @@ export  function LandingPage() {
             <Button variant="ghost" size="icon" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
               {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
             </Button>
-                     {!user && (
-            <>
-              <Button onClick={() => setShowLogin(true)}>تسجيل الدخول</Button>
-              <Button variant="outline" asChild>
-                <Link href="/signup">إنشاء حساب</Link>
-              </Button>
-            </>
-          )}
-
-
+            {!isLoggedIn && !isUserLoading && (
+              <>
+                <Button onClick={() => setShowLogin(true)}>تسجيل الدخول</Button>
+                <Button variant="outline" asChild>
+                  <Link href="/signup">إنشاء حساب</Link>
+                </Button>
+              </>
+            )}
           </nav>
 
           {/* زر القائمة للشاشات الصغيرة */}
@@ -98,7 +130,7 @@ export  function LandingPage() {
           >
             <div className="flex flex-col h-full">
               <div className="flex items-center justify-between p-4 border-b">
-                <div className="font-bold text-xl">نظام حضور معهد راية</div>
+                <Link href={"/"} className="font-bold text-xl">نظام حضور معهد راية</Link>
                 <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(false)}>
                   <X className="h-6 w-6" />
                 </Button>
@@ -126,21 +158,21 @@ export  function LandingPage() {
                   اتصل بنا
                 </Link>
 
-{!user&&<>
-    <Button
-                  onClick={() => {
-                    setShowLogin(true)
-                    setMobileMenuOpen(false)
-                  }}
-                >
-                  تسجيل الدخول
-                </Button>
-                <Button variant="outline" asChild onClick={() => setMobileMenuOpen(false)}>
-                  <Link href="/signup">إنشاء حساب</Link>
-                </Button>
-</> }
-
-
+                {!isLoggedIn && !isUserLoading && (
+                  <>
+                    <Button
+                      onClick={() => {
+                        setShowLogin(true)
+                        setMobileMenuOpen(false)
+                      }}
+                    >
+                      تسجيل الدخول
+                    </Button>
+                    <Button variant="outline" asChild onClick={() => setMobileMenuOpen(false)}>
+                      <Link href="/signup">إنشاء حساب</Link>
+                    </Button>
+                  </>
+                )}
               </nav>
             </div>
           </motion.div>
@@ -167,7 +199,7 @@ export  function LandingPage() {
               </Button>
               <div className="p-6">
                 <h2 className="text-2xl font-bold mb-6 text-center">تسجيل الدخول</h2>
-                <LoginForm onSuccess={() => setShowLogin(false)} />
+                <LoginForm />
               </div>
             </motion.div>
           </motion.div>
@@ -175,30 +207,45 @@ export  function LandingPage() {
       </AnimatePresence>
 
       {/* القسم الرئيسي */}
-      <section className="container py-12 md:py-24 lg:py-32">
-        <div className="grid gap-6 lg:grid-cols-2 lg:gap-12 items-center">
+      <section className="w-[95%] mx-auto py-12 md:py-24 lg:py-32">
+        <div className="grid gap-6 lg:grid-cols-2 lg:gap-12 items-center max-lg:text-center">
           <div className="flex flex-col justify-center space-y-4">
             <div className="space-y-2">
-              <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl lg:text-6xl">
-                نظام حضور متكامل لمعهد راية
+              <h1 className="text-3xl text-[#c7b66d] my-4 font-bold tracking-tighter sm:text-3xl md:text-4xl lg:text-5xl min-h-[4rem]">
+                {typedText}
+                {!isTypingComplete && <span className="animate-pulse">|</span>}
               </h1>
-              <p className="max-w-[600px] text-muted-foreground md:text-xl">
+              <p className="max-w-[600px] max-lg:mx-auto text-muted-foreground md:text-xl max-lg:text-center">
                 نظام إلكتروني متكامل لتسجيل ومتابعة حضور الطلاب في المحاضرات والدورات التدريبية
               </p>
-            </div>
-
-            {!user&&  <div className="flex flex-col sm:flex-row gap-4">
-              <Button size="lg" asChild>
-                <Link href="/signup">
-                  ابدأ الآن
-                  <ChevronRight className="mr-2 h-4 w-4" />
+              <Button variant="outline" size="lg" className=" min-w-[250px] border-[#908556] hover:bg-[#90855671] my-5" asChild>
+                <Link
+                  href={`${
+                    userDetails?.role === "student"
+                      ? "student-dash"
+                      : userDetails?.role === "doctor"
+                        ? "/doctor-dash"
+                        : "/signup"
+                  }`}
+                >
+                  انضم إلينا الآن
                 </Link>
               </Button>
-              <Button variant="outline" size="lg" onClick={() => setShowLogin(true)}>
-                تسجيل الدخول
-              </Button>
-            </div> }
+            </div>
 
+            {!isLoggedIn && !isUserLoading && (
+              <div className="flex flex-col sm:flex-row gap-4">
+                <Button size="lg" asChild>
+                  <Link href="/signup">
+                    ابدأ الآن
+                    <ChevronRight className="mr-2 h-4 w-4" />
+                  </Link>
+                </Button>
+                <Button variant="outline" size="lg" onClick={() => setShowLogin(true)}>
+                  تسجيل الدخول
+                </Button>
+              </div>
+            )}
           </div>
           <div className="flex justify-center">
             <motion.img
@@ -223,7 +270,7 @@ export  function LandingPage() {
             نظام حضور معهد راية يوفر العديد من المميزات التي تسهل عملية تسجيل ومتابعة حضور الطلاب
           </p>
         </div>
-        <div className="mx-auto grid justify-center gap-4 sm:grid-cols-2 md:max-w-[64rem] md:grid-cols-2 lg:grid-cols-4 mt-12">
+        <div className="mx-auto grid justify-center gap-4 sm:grid-cols-2  md:grid-cols-2 lg:grid-cols-4 mt-12">
           {features.map((feature, index) => (
             <motion.div
               key={index}
@@ -261,7 +308,7 @@ export  function LandingPage() {
             />
           </div>
           <div className="flex flex-col justify-center space-y-4">
-            <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl">عن نظام حضور معهد راية</h2>
+            <Link href={'/'} className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl">عن نظام حضور معهد راية</Link>
             <p className="text-muted-foreground md:text-lg">
               تم تطوير نظام حضور معهد راية لتسهيل عملية تسجيل ومتابعة حضور الطلاب في المحاضرات والدورات التدريبية. يوفر
               النظام واجهة سهلة الاستخدام للطلاب والدكاترة، ويتيح إمكانية استخراج تقارير مفصلة عن حضور الطلاب.
@@ -271,18 +318,19 @@ export  function LandingPage() {
               متابعة سجل حضورهم والاطلاع على نسب الحضور الخاصة بهم.
             </p>
             <div>
-            <Button
-              variant="outline"
-              size="lg"
-              asChild
-            >
-              <Link
-                href={`${userDetails?.role === "student" ? "student-dash" : userDetails?.role === "doctor" ? "/doctor-dash" : "/signup"}`}
-              >
-                انضم إلينا الآن
-              </Link>
-            </Button>
-
+              <Button variant="outline" size="lg" asChild>
+                <Link
+                  href={`${
+                    userDetails?.role === "student"
+                      ? "student-dash"
+                      : userDetails?.role === "doctor"
+                        ? "/doctor-dash"
+                        : "/signup"
+                  }`}
+                >
+                  انضم إلينا الآن
+                </Link>
+              </Button>
             </div>
           </div>
         </div>
