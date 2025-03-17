@@ -4,9 +4,10 @@ import { useState } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
-import { useToast } from "@/components/ui/use-toast"
-import { createClient } from "@/lib/supabase/client"
+import { useToast } from "@/hooks/use-toast"
 import { MoreHorizontal, Check, Clock, X } from "lucide-react"
+import { useQueryClient } from "@tanstack/react-query"
+import { updateAttendanceStatus } from "@/hooks/use-realtime-queries"
 
 interface AttendanceRecord {
   id: string
@@ -21,13 +22,13 @@ interface AttendanceRecord {
 
 interface AttendanceTableProps {
   records: AttendanceRecord[]
-  onRecordUpdated?: () => void
+  courseId?: string
 }
 
-export function AttendanceTable({ records, onRecordUpdated }: AttendanceTableProps) {
+export function AttendanceTable({ records }: AttendanceTableProps) {
   const { toast } = useToast()
   const [isUpdating, setIsUpdating] = useState<string | null>(null)
-  const supabase = createClient()
+  const queryClient = useQueryClient()
 
   // Group records by date
   const recordsByDate = records.reduce(
@@ -45,22 +46,20 @@ export function AttendanceTable({ records, onRecordUpdated }: AttendanceTablePro
   // Sort dates in descending order
   const sortedDates = Object.keys(recordsByDate).sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
 
-  const updateAttendanceStatus = async (recordId: string, status: "present" | "absent" | "late") => {
+  const handleUpdateAttendanceStatus = async (recordId: string, status: "present" | "absent" | "late") => {
     setIsUpdating(recordId)
     try {
-      const { error } = await supabase.from("attendance").update({ status }).eq("id", recordId)
-
-      if (error) throw error
+      await updateAttendanceStatus(recordId, status)
 
       toast({
         title: "تم تحديث الحضور",
         description: "تم تحديث حالة الحضور بنجاح",
       })
 
-      // Update the local state or refetch
-      if (onRecordUpdated) {
-        onRecordUpdated()
-      }
+      // No es necesario invalidar la consulta aquí, ya que la suscripción en tiempo real lo hará
+      // Sin embargo, podemos hacerlo para asegurar una actualización inmediata
+      queryClient.invalidateQueries({ queryKey: ["course-attendance"] })
+      queryClient.invalidateQueries({ queryKey: ["student-attendance"] })
     } catch (error: any) {
       console.error("Error updating attendance:", error)
       toast({
@@ -160,15 +159,15 @@ export function AttendanceTable({ records, onRecordUpdated }: AttendanceTablePro
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => updateAttendanceStatus(record.id, "present")}>
+                          <DropdownMenuItem onClick={() => handleUpdateAttendanceStatus(record.id, "present")}>
                             <Check className="ml-2 h-4 w-4 text-green-600" />
                             تعيين كحاضر
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => updateAttendanceStatus(record.id, "late")}>
+                          <DropdownMenuItem onClick={() => handleUpdateAttendanceStatus(record.id, "late")}>
                             <Clock className="ml-2 h-4 w-4 text-yellow-600" />
                             تعيين كمتأخر
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => updateAttendanceStatus(record.id, "absent")}>
+                          <DropdownMenuItem onClick={() => handleUpdateAttendanceStatus(record.id, "absent")}>
                             <X className="ml-2 h-4 w-4 text-red-600" />
                             تعيين كغائب
                           </DropdownMenuItem>

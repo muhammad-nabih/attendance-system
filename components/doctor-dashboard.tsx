@@ -20,21 +20,17 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Separator } from "@/components/ui/separator"
-
 import { DashboardHeader } from "@/components/dashboard-header"
 import { LogoutButton } from "@/components/logout-button"
 import { Progress } from "@/components/ui/progress"
-
+import { useDoctorCourses, useCourseStudents, useCourseAttendance } from "@/hooks/use-realtime-queries"
 
 export function DoctorDashboard() {
   const router = useRouter()
   const { toast } = useToast()
   const supabase = createClient()
   const [user, setUser] = useState<any>(null)
-  const [courses, setCourses] = useState<any[]>([])
   const [selectedCourse, setSelectedCourse] = useState<string | null>(null)
-  const [students, setStudents] = useState<any[]>([])
-  const [attendanceRecords, setAttendanceRecords] = useState<any[]>([])
   const [isAddCourseOpen, setIsAddCourseOpen] = useState(false)
   const [isAddStudentOpen, setIsAddStudentOpen] = useState(false)
   const [isCourseDetailsOpen, setIsCourseDetailsOpen] = useState(false)
@@ -71,7 +67,7 @@ export function DoctorDashboard() {
         }
 
         setUser(userData)
-        fetchCourses(userData.id)
+        setIsLoading(false)
       } catch (error: any) {
         console.error("Error fetching user:", error)
         toast({
@@ -86,121 +82,31 @@ export function DoctorDashboard() {
     fetchUser()
   }, [])
 
-  // Fetch courses for the doctor
-  const fetchCourses = async (doctorId: string) => {
-    setIsLoading(true)
-    try {
-      const { data, error } = await supabase
-        .from("courses")
-        .select("*")
-        .eq("doctor_id", doctorId)
-        .order("created_at", { ascending: false })
+  // Usar los hooks de React Query
+  const { courses, isLoading: isLoadingCourses } = useDoctorCourses(user?.id)
+  const { students } = useCourseStudents(selectedCourse)
+  const { attendanceRecords } = useCourseAttendance(selectedCourse)
 
-      if (error) throw error
-
-      setCourses(data || [])
-      if (data && data.length > 0) {
-        setSelectedCourse(data[0].id)
-        fetchStudentsForCourse(data[0].id)
-        fetchAttendanceForCourse(data[0].id)
-      }
-    } catch (error: any) {
-      console.error("Error fetching courses:", error)
-      toast({
-        variant: "destructive",
-        title: "خطأ في تحميل الدورات",
-        description: "حدث خطأ أثناء تحميل قائمة الدورات",
-      })
-    } finally {
-      setIsLoading(false)
+  // Establecer el curso seleccionado por defecto
+  useEffect(() => {
+    if (courses.length > 0 && !selectedCourse) {
+      setSelectedCourse(courses[0].id)
     }
-  }
-
-  // Fetch students for a course
-  const fetchStudentsForCourse = async (courseId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from("course_students")
-        .select(`
-          id,
-          student:student_id(
-            id,
-            name,
-            email
-          )
-        `)
-        .eq("course_id", courseId)
-
-      if (error) throw error
-
-      // Transform the data to a more usable format
-      const formattedStudents = data.map((item: any) => ({
-        id: item.student.id,
-        name: item.student.name,
-        email: item.student.email,
-      }))
-
-      setStudents(formattedStudents)
-    } catch (error: any) {
-      console.error("Error fetching students:", error)
-      toast({
-        variant: "destructive",
-        title: "خطأ في تحميل الطلاب",
-        description: "حدث خطأ أثناء تحميل قائمة الطلاب",
-      })
-    }
-  }
-
-  // Fetch attendance records for a course
-  const fetchAttendanceForCourse = async (courseId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from("attendance")
-        .select(`
-          id,
-          date,
-          status,
-          student:student_id(
-            id,
-            name,
-            email
-          )
-        `)
-        .eq("course_id", courseId)
-        .order("date", { ascending: false })
-
-      if (error) throw error
-
-      setAttendanceRecords(data || [])
-    } catch (error: any) {
-      console.error("Error fetching attendance:", error)
-      toast({
-        variant: "destructive",
-        title: "خطأ في تحميل سجلات الحضور",
-        description: "حدث خطأ أثناء تحميل سجلات الحضور",
-      })
-    }
-  }
+  }, [courses, selectedCourse])
 
   // Handle course selection
   const handleCourseSelect = (courseId: string) => {
     setSelectedCourse(courseId)
-    fetchStudentsForCourse(courseId)
-    fetchAttendanceForCourse(courseId)
   }
 
   // Handle course refresh after adding a new course
   const handleCourseAdded = () => {
-    if (user) {
-      fetchCourses(user.id)
-    }
+    // No es necesario hacer nada aquí, React Query se encargará de actualizar los datos
   }
 
   // Handle student refresh after adding new students
   const handleStudentsAdded = () => {
-    if (selectedCourse) {
-      fetchStudentsForCourse(selectedCourse)
-    }
+    // No es necesario hacer nada aquí, React Query se encargará de actualizar los datos
   }
 
   const refreshUserData = async () => {
@@ -264,6 +170,16 @@ export function DoctorDashboard() {
       totalStudents,
       totalLectures,
     }
+  }
+
+  if (isLoading || isLoadingCourses) {
+    return (
+      <DashboardShell>
+        <div className="flex justify-center items-center h-screen">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        </div>
+      </DashboardShell>
+    )
   }
 
   return (
@@ -383,17 +299,7 @@ export function DoctorDashboard() {
               </Button>
             </div>
 
-            {isLoading ? (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {[1, 2, 3].map((i) => (
-                  <Card key={i} className="animate-pulse">
-                    <CardHeader className="h-24 bg-muted/50" />
-                    <CardContent className="h-12 bg-muted/30 mt-4" />
-                    <CardFooter className="h-8 bg-muted/20 mt-2" />
-                  </Card>
-                ))}
-              </div>
-            ) : courses.length === 0 ? (
+            {courses.length === 0 ? (
               <Card>
                 <CardHeader>
                   <CardTitle>لا توجد دورات</CardTitle>
@@ -471,7 +377,7 @@ export function DoctorDashboard() {
                           <CardDescription>عرض سجل حضور الطلاب في الدورة</CardDescription>
                         </CardHeader>
                         <CardContent>
-                          <AttendanceTable records={attendanceRecords} />
+                          <AttendanceTable records={attendanceRecords} courseId={selectedCourse} />
                         </CardContent>
                       </Card>
                     </TabsContent>
@@ -568,7 +474,6 @@ export function DoctorDashboard() {
                     })}
                   </div>
                 </CardContent>
-
               </Card>
 
               {/* تقرير الطلاب */}
@@ -603,7 +508,6 @@ export function DoctorDashboard() {
                     )}
                   </div>
                 </CardContent>
-
               </Card>
             </div>
           </>
@@ -633,3 +537,4 @@ export function DoctorDashboard() {
     </DashboardShell>
   )
 }
+

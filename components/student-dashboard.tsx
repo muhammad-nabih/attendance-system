@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { format, parseISO, isToday, isYesterday, isSameWeek } from "date-fns"
 import { ar } from "date-fns/locale"
 import {
@@ -27,7 +27,6 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-
 import { Separator } from "@/components/ui/separator"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import {
@@ -38,152 +37,59 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-
 import { QRCodeScanner } from "@/components/qr-code-scanner"
-import { createClient } from "@/lib/supabase/client"
 import { ProfileSection } from "@/components/profile-section"
 import { CourseDetailsDialog } from "@/components/dialogs/course-details-dialog"
-import { useUser } from "@/providers/userContext"
-
+import { createClient } from "@/lib/supabase/client"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useStudentCourses, useStudentAttendance } from "@/hooks/use-realtime-queries"
 
 export function StudentDashboard() {
   const router = useRouter()
   const { toast } = useToast()
-  const {supabase} = useUser()
-  const [user, setUser] = useState<any>(null)
-  const [courses, setCourses] = useState<any[]>([])
-  const [attendanceRecords, setAttendanceRecords] = useState<any[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const supabase = createClient()
   const [activeTab, setActiveTab] = useState("dashboard")
   const [courseDetailsOpen, setCourseDetailsOpen] = useState(false)
   const [selectedCourseForDetails, setSelectedCourseForDetails] = useState<string | null>(null)
+  const queryClient = useQueryClient()
 
-  // الحصول على بيانات المستخدم الحالي
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const {
-          data: { user: authUser },
-          error: authError,
-        } = await supabase.auth.getUser()
-        if (authError) throw authError
+  // Consulta para obtener los datos del usuario
+  const { data: user, isLoading: isLoadingUser } = useQuery({
+    queryKey: ["current-user"],
+    queryFn: async () => {
+      const {
+        data: { user: authUser },
+        error: authError,
+      } = await supabase.auth.getUser()
+      if (authError) throw authError
 
-        if (!authUser) {
-          router.push("/login")
-          return
-        }
-
-        // Get user details from the users table
-        const { data: userData, error: userError } = await supabase
-          .from("users")
-          .select("*")
-          .eq("id", authUser.id)
-          .single()
-
-        if (userError) throw userError
-
-        if (userData.role !== "student") {
-          router.push("/")
-          return
-        }
-
-        setUser(userData)
-        fetchStudentCourses(userData.id)
-        fetchStudentAttendance(userData.id)
-      } catch (error: any) {
-        console.error("Error fetching user:", error)
-        toast({
-          variant: "destructive",
-          title: "خطأ في تحميل البيانات",
-          description: "حدث خطأ أثناء تحميل بيانات المستخدم",
-        })
+      if (!authUser) {
         router.push("/login")
+        return null
       }
-    }
 
-    fetchUser()
-  }, [router, supabase, toast])
+      const { data: userData, error: userError } = await supabase
+        .from("users")
+        .select("*")
+        .eq("id", authUser.id)
+        .single()
 
-  // Fetch courses for the student
-  const fetchStudentCourses = async (studentId: string) => {
-    setIsLoading(true)
-    try {
-      const { data, error } = await supabase
-        .from("course_students")
-        .select(`
-          course:course_id(
-            id,
-            name,
-            doctor:doctor_id(
-              name
-            )
-          )
-        `)
-        .eq("student_id", studentId)
+      if (userError) throw userError
 
-      if (error) throw error
+      if (userData.role !== "student") {
+        router.push("/")
+        return null
+      }
 
-      // Transform the data to a more usable format
-      const formattedCourses = data.map((item: any) => ({
-        id: item.course.id,
-        name: item.course.name,
-        doctorName: item.course.doctor.name,
-      }))
+      return userData
+    },
+  })
 
-      setCourses(formattedCourses)
-    } catch (error: any) {
-      console.error("Error fetching courses:", error)
-      toast({
-        variant: "destructive",
-        title: "خطأ في تحميل الدورات",
-        description: "حدث خطأ أثناء تحميل قائمة الدورات",
-      })
-    } finally {
-      setIsLoading(false)
-    }
-  }
+  // Usar los hooks de React Query para cursos y asistencia
+  const { courses } = useStudentCourses(user?.id)
+  const { attendanceRecords } = useStudentAttendance(user?.id)
 
-  // Fetch attendance records for the student
-  const fetchStudentAttendance = async (studentId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from("attendance")
-        .select(`
-          id,
-          date,
-          status,
-          course_id
-        `)
-        .eq("student_id", studentId)
-        .order("date", { ascending: false })
-
-      if (error) throw error
-
-      setAttendanceRecords(data || [])
-    } catch (error: any) {
-      console.error("Error fetching attendance:", error)
-      toast({
-        variant: "destructive",
-        title: "خطأ في تحميل سجلات الحضور",
-        description: "حدث خطأ أثناء تحميل سجلات الحضور",
-      })
-    }
-  }
-
-  // حساب إحصائيات الحضور
-  const calculateStats = () => {
-    if (!attendanceRecords) return { present: 0, absent: 0, late: 0, total: 0, presentPercentage: 0 }
-
-    const present = attendanceRecords.filter((record) => record.status === "present").length
-    const absent = attendanceRecords.filter((record) => record.status === "absent").length
-    const late = attendanceRecords.filter((record) => record.status === "late").length
-    const total = attendanceRecords.length
-    const presentPercentage = total > 0 ? Math.round((present / total) * 100) : 0
-
-    return { present, absent, late, total, presentPercentage }
-  }
-
-  // تصنيف سجلات الحضور حسب الوقت
+  // Categorizar los registros de asistencia por tiempo
   const categorizeAttendance = () => {
     if (!attendanceRecords) return { today: [], yesterday: [], thisWeek: [], older: [] }
 
@@ -208,7 +114,21 @@ export function StudentDashboard() {
     return { today, yesterday, thisWeek, older }
   }
 
-  // حساب إحصائيات الحضور لكل دورة
+  // Calcular estadísticas de asistencia
+  const calculateStats = () => {
+    if (!attendanceRecords || attendanceRecords.length === 0)
+      return { present: 0, absent: 0, late: 0, total: 0, presentPercentage: 0 }
+
+    const present = attendanceRecords.filter((record) => record.status === "present").length
+    const absent = attendanceRecords.filter((record) => record.status === "absent").length
+    const late = attendanceRecords.filter((record) => record.status === "late").length
+    const total = attendanceRecords.length
+    const presentPercentage = total > 0 ? Math.round((present / total) * 100) : 0
+
+    return { present, absent, late, total, presentPercentage }
+  }
+
+  // Calcular estadísticas por curso
   const calculateCourseStats = (courseId: string) => {
     const courseRecords = attendanceRecords.filter((record) => record.course_id === courseId)
     const present = courseRecords.filter((record) => record.status === "present").length
@@ -220,49 +140,20 @@ export function StudentDashboard() {
     return { present, absent, late, total, presentPercentage }
   }
 
-  const stats = calculateStats()
-  const categorized = categorizeAttendance()
+  // Función para actualizar los datos del usuario
+  const refreshUserData = async () => {
+    queryClient.invalidateQueries({ queryKey: ["current-user"] })
+  }
 
-  // الحصول على الحرف الأول من اسم المستخدم
+  // Obtener iniciales del nombre
   const getInitials = (name: string) => {
     return name ? name.charAt(0).toUpperCase() : "U"
   }
 
-  // Function to refresh user data
-  const refreshUserData = async () => {
-    try {
-      const {
-        data: { user: authUser },
-      } = await supabase.auth.getUser()
-      if (authUser) {
-        const { data: userData, error: userError } = await supabase
-          .from("users")
-          .select("*")
-          .eq("id", authUser.id)
-          .single()
+  const stats = calculateStats()
+  const categorized = categorizeAttendance()
 
-        if (userError) {
-          console.error("Error fetching user data:", userError)
-          toast({
-            variant: "destructive",
-            title: "Error",
-            description: "Failed to refresh user data.",
-          })
-        } else {
-          setUser(userData)
-        }
-      }
-    } catch (error: any) {
-      console.error("Error refreshing user:", error)
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to refresh user data.",
-      })
-    }
-  }
-
-  if (isLoading) {
+  if (isLoadingUser) {
     return (
       <div className="flex justify-center items-center h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
@@ -276,7 +167,7 @@ export function StudentDashboard() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      {/* الشريط العلوي */}
+      {/* Header */}
       <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-16 items-center justify-between">
           <div className="flex items-center gap-4">
@@ -400,7 +291,7 @@ export function StudentDashboard() {
         </div>
       </header>
 
-      {/* المحتوى الرئيسي */}
+      {/* Main content */}
       <main className="flex-1 container py-8">
         {activeTab === "dashboard" && (
           <>
@@ -862,7 +753,6 @@ export function StudentDashboard() {
                     </div>
                   </div>
                 </CardContent>
-
               </Card>
 
               <Card className="hover-card">
@@ -895,7 +785,6 @@ export function StudentDashboard() {
                     </div>
                   </div>
                 </CardContent>
-
               </Card>
             </div>
           </>
@@ -927,7 +816,7 @@ export function StudentDashboard() {
         />
       )}
 
-      {/* تذييل الصفحة */}
+      {/* Footer */}
       <footer className="border-t py-6">
         <div className="container flex flex-col items-center justify-center gap-4 md:flex-row md:gap-8">
           <p className="text-center text-sm leading-loose text-muted-foreground md:text-left">
@@ -938,3 +827,4 @@ export function StudentDashboard() {
     </div>
   )
 }
+

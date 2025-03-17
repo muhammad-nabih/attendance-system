@@ -8,6 +8,7 @@ import { ReduxProvider } from "@/lib/redux/provider"
 import { cn } from "@/lib/utils"
 import './globals.css'
 import { UserProvider } from "@/providers/userContext"
+import { QueryProvider } from "@/providers/query-provider"
 
 const cairo = Cairo({
   subsets: ["arabic"],
@@ -28,6 +29,7 @@ export default function RootLayout({
   return (
     <html lang="ar" dir="rtl" >
       <body className={cn("min-h-screen bg-background font-cairo antialiased", cairo.variable)}>
+      <QueryProvider>
         <ReduxProvider>
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <UserProvider>
@@ -36,6 +38,7 @@ export default function RootLayout({
             <Toaster />
           </ThemeProvider>
         </ReduxProvider>
+        </QueryProvider>
       </body>
     </html>
   )
