@@ -9,7 +9,7 @@ export default async function SignupPage() {
   // التحقق من المصادقة على جانب الخادم
 
 
- 
+
 
   return (
     <div className="min-h-screen bg-background flex flex-col">

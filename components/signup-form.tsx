@@ -1,18 +1,23 @@
 "use client"
+
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
+import { motion } from "framer-motion"
+import { createClient } from "@supabase/supabase-js"
 import { Loader2 } from "lucide-react"
-import { useMutation } from "@tanstack/react-query"
 
 import { Button } from "@/components/ui/button"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/components/ui/use-toast"
-import { createClient } from "@/lib/supabase/client"
+
+// إنشاء عميل Supabase
+const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_KEY!)
 
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -25,70 +30,16 @@ const formSchema = z.object({
     message: "يجب أن تكون كلمة المرور 6 أحرف على الأقل",
   }),
   role: z.enum(["student", "doctor"], {
-    required_error: "يرجى اختيار نوع الحساب",
+    required_error: "يرجى اختيار نوع المستخدم",
   }),
 })
-
-type SignupFormValues = z.infer<typeof formSchema>
 
 export function SignupForm() {
   const router = useRouter()
   const { toast } = useToast()
-  const supabase = createClient()
+  const [isLoading, setIsLoading] = useState(false)
 
-  const signupMutation = useMutation({
-    mutationFn: async (values: SignupFormValues) => {
-      // Check if user already exists
-      const { data: existingUser, error: checkError } = await supabase
-        .from("users")
-        .select("email")
-        .eq("email", values.email)
-        .single()
-
-      if (existingUser) {
-        throw new Error("البريد الإلكتروني مستخدم بالفعل")
-      }
-
-      // Sign up with Supabase Auth
-      const { data, error } = await supabase.auth.signUp({
-        email: values.email,
-        password: values.password,
-      })
-
-      if (error) throw error
-
-      // Add user to the users table
-      const { error: insertError } = await supabase.from("users").insert([
-        {
-          id: data.user?.id,
-          name: values.name,
-          email: values.email,
-          role: values.role,
-        },
-      ])
-
-      if (insertError) throw insertError
-
-      return data
-    },
-    onSuccess: () => {
-      toast({
-        title: "تم إنشاء الحساب بنجاح",
-        description: "يمكنك الآن تسجيل الدخول باستخدام بياناتك",
-      })
-      router.push("/login")
-    },
-    onError: (error: Error) => {
-      console.error("Signup error:", error)
-      toast({
-        variant: "destructive",
-        title: "خطأ في إنشاء الحساب",
-        description: error.message || "حدث خطأ أثناء إنشاء الحساب، يرجى المحاولة مرة أخرى",
-      })
-    },
-  })
-
-  const form = useForm<SignupFormValues>({
+  const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
@@ -98,91 +49,170 @@ export function SignupForm() {
     },
   })
 
-  function onSubmit(values: SignupFormValues) {
-    signupMutation.mutate(values)
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    setIsLoading(true)
+
+    try {
+      // التحقق من عدم وجود مستخدم بنفس البريد الإلكتروني
+      const { data: existingUser, error: checkError } = await supabase
+        .from("users")
+        .select("email")
+        .eq("email", values.email)
+
+      if (checkError) {
+        console.error("Error checking existing user:", checkError)
+        throw new Error("خطأ في التحقق من وجود المستخدم")
+      }
+
+      if (existingUser && existingUser.length > 0) {
+        throw new Error("البريد الإلكتروني مستخدم بالفعل")
+      }
+
+      // إنشاء حساب في نظام المصادقة
+      const { data, error } = await supabase.auth.signUp({
+        email: values.email,
+        password: values.password,
+      })
+
+      if (error) {
+        console.error("Auth signup error:", error)
+        throw error
+      }
+
+      if (!data.user) {
+        throw new Error("فشل إنشاء المستخدم")
+      }
+
+      console.log("Auth user created successfully:", data.user.id)
+
+      // إضافة المستخدم إلى جدول المستخدمين
+      const { error: userError } = await supabase.from("users").insert([
+        {
+          id: data.user.id,
+          name: values.name,
+          email: values.email,
+          password: "hashed_password", // في الواقع يجب تشفير كلمة المرور
+          role: values.role,
+        },
+      ])
+
+      if (userError) {
+        console.error("Error inserting user:", userError)
+
+        // محاولة حذف المستخدم من نظام المصادقة إذا فشل إنشاء السجل في جدول المستخدمين
+        try {
+          // لا يمكن حذف المستخدم مباشرة، لكن يمكن تسجيل الخروج
+          await supabase.auth.signOut()
+        } catch (logoutError) {
+          console.error("Error during cleanup:", logoutError)
+        }
+
+        throw new Error("فشل إنشاء سجل المستخدم: " + userError.message)
+      }
+
+      toast({
+        title: "تم إنشاء الحساب بنجاح",
+        description: "يمكنك الآن تسجيل الدخول",
+      })
+
+      router.push("/")
+    } catch (error: any) {
+      console.error("Signup error:", error)
+      toast({
+        variant: "destructive",
+        title: "خطأ في إنشاء الحساب",
+        description: error.message || "قد يكون البريد الإلكتروني مستخدم بالفعل",
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <FormField
-          control={form.control}
-          name="name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>الاسم</FormLabel>
-              <FormControl>
-                <Input placeholder="أدخل اسمك الكامل" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="email"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>البريد الإلكتروني</FormLabel>
-              <FormControl>
-                <Input placeholder="example@example.com" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="password"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>كلمة المرور</FormLabel>
-              <FormControl>
-                <Input type="password" placeholder="******" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="role"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>نوع الحساب</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+    <div className="mx-auto min-w-[50%]  p-6 bg-card rounded-lg shadow-lg border">
+      <h2 className="text-2xl font-bold mb-6 text-center">إنشاء حساب جديد</h2>
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <FormField
+            control={form.control}
+            name="name"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>الاسم</FormLabel>
                 <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="اختر نوع الحساب" />
-                  </SelectTrigger>
+                  <Input placeholder="محمد أحمد" {...field} />
                 </FormControl>
-                <SelectContent>
-                  <SelectItem value="student">طالب</SelectItem>
-                  <SelectItem value="doctor">محاضر</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <Button type="submit" className="w-full" disabled={signupMutation.isPending}>
-          {signupMutation.isPending ? (
-            <>
-              <Loader2 className="ml-2 h-4 w-4 animate-spin" />
-              جاري إنشاء الحساب...
-            </>
-          ) : (
-            "إنشاء حساب"
-          )}
-        </Button>
-      </form>
-      <div className="mt-4 text-center text-sm">
-        لديك حساب بالفعل؟{" "}
-        <Link href="/login" className="text-primary hover:underline">
-          تسجيل الدخول
-        </Link>
-      </div>
-    </Form>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="email"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>البريد الإلكتروني</FormLabel>
+                <FormControl>
+                  <Input placeholder="example@raya.edu" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="password"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>كلمة المرور</FormLabel>
+                <FormControl>
+                  <Input type="password" placeholder="******" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="role"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>نوع المستخدم</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="اختر نوع المستخدم" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="student">طالب</SelectItem>
+                    <SelectItem value="doctor">دكتور</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <motion.div whileTap={{ scale: 0.98 }}>
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                  جاري إنشاء الحساب...
+                </>
+              ) : (
+                "إنشاء حساب"
+              )}
+            </Button>
+          </motion.div>
+          <div className="text-center text-sm">
+            لديك حساب بالفعل؟{" "}
+            <Link href="/" className="text-primary hover:underline">
+              تسجيل الدخول
+            </Link>
+          </div>
+        </form>
+      </Form>
+    </div>
   )
 }
-
