@@ -17,7 +17,7 @@ import {
 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { useToast } from "@/hooks/use-toast"
+import { useToast } from "@/components/ui/use-toast"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { LogoutButton } from "@/components/logout-button"
 import { useRouter } from "next/navigation"
@@ -227,9 +227,9 @@ export function StudentDashboard() {
                 </nav>
               </SheetContent>
             </Sheet>
-            <div className="flex items-center gap-2 font-bold text-xl">
+            <div className="flex items-center gap-2 font-bold lg:text-lg xl:text-xl md:text-sm">
             <Image src={LOGO}   alt="شعار" className="h-8 w-8" />
-            <span className="hidden md:inline-block">نظام حضور معهد راية</span>
+            <span className="hidden md:inline-block ">نظام حضور معهد راية</span>
             </div>
           </div>
           <div className="flex items-center gap-4">

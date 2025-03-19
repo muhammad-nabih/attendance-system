@@ -211,14 +211,14 @@ export function LandingPage() {
         <div className="grid gap-6 lg:grid-cols-2 lg:gap-12 items-center max-lg:text-center">
           <div className="flex flex-col justify-center space-y-4">
             <div className="space-y-2">
-              <h1 className="text-3xl text-[#c7b66d] my-4 font-bold tracking-tighter sm:text-3xl md:text-4xl lg:text-5xl min-h-[4rem]">
+              <h1 className="text-3xl text-[#c7b66d]  font-bold tracking-tighter sm:text-3xl md:text-4xl lg:text-5xl min-h-[4rem] my-8">
                 {typedText}
                 {!isTypingComplete && <span className="animate-pulse">|</span>}
               </h1>
               <p className="max-w-[600px] max-lg:mx-auto text-muted-foreground md:text-xl max-lg:text-center">
                 نظام إلكتروني متكامل لتسجيل ومتابعة حضور الطلاب في المحاضرات والدورات التدريبية
               </p>
-              <Button variant="outline" size="lg" className=" min-w-[250px] border-[#908556] hover:bg-[#90855671] my-5" asChild>
+              <Button variant="outline" size="lg" className="  min-w-[250px] border-[#908556] hover:bg-[#90855671] my-8" asChild>
                 <Link
                   href={`${
                     userDetails?.role === "student"
@@ -233,8 +233,9 @@ export function LandingPage() {
               </Button>
             </div>
 
+
             {!isLoggedIn && !isUserLoading && (
-              <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex flex-col sm:flex-row gap-4 max-lg:justify-center max-lg:my-4 ">
                 <Button size="lg" asChild>
                   <Link href="/signup">
                     ابدأ الآن

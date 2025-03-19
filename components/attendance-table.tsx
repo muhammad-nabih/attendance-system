@@ -4,10 +4,11 @@ import { useState } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
-import { useToast } from "@/hooks/use-toast"
+
 import { MoreHorizontal, Check, Clock, X } from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
 import { updateAttendanceStatus } from "@/hooks/use-realtime-queries"
+import { useToast } from "@/components/ui/use-toast"
 
 interface AttendanceRecord {
   id: string

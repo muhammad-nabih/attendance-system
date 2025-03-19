@@ -67,10 +67,12 @@ export function LoginForm() {
     },
     onError: (error: Error) => {
       console.error("Login error:", error)
+      console.log("we have the error message ")
       toast({
         variant: "destructive",
         title: "خطأ في تسجيل الدخول",
         description: "البريد الإلكتروني أو كلمة المرور غير صحيحة",
+
       })
     },
   })
@@ -141,4 +143,3 @@ export function LoginForm() {
     </Form>
   )
 }
-
