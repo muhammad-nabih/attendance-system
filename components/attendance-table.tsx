@@ -21,7 +21,7 @@ interface AttendanceRecord {
 }
 
 interface AttendanceTableProps {
-  records: AttendanceRecord[]
+  records: any
   courseId?: string
 }
 
@@ -32,7 +32,7 @@ export function AttendanceTable({ records }: AttendanceTableProps) {
 
   // Group records by date
   const recordsByDate = records.reduce(
-    (acc, record) => {
+    (acc:any, record:any) => {
       const date = record.date
       if (!acc[date]) {
         acc[date] = []
@@ -125,7 +125,7 @@ export function AttendanceTable({ records }: AttendanceTableProps) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {recordsByDate[date].map((record) => (
+                {recordsByDate[date].map((record:any) => (
                   <TableRow key={record.id}>
                     <TableCell>{record.student.name}</TableCell>
                     <TableCell>{record.student.email}</TableCell>
@@ -184,4 +184,3 @@ export function AttendanceTable({ records }: AttendanceTableProps) {
     </div>
   )
 }
-

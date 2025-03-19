@@ -43,6 +43,8 @@ import { CourseDetailsDialog } from "@/components/dialogs/course-details-dialog"
 import { createClient } from "@/lib/supabase/client"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useStudentCourses, useStudentAttendance } from "@/hooks/use-realtime-queries"
+import LOGO from "@/public/LOGO.png"
+import Image from "next/image"
 
 export function StudentDashboard() {
   const router = useRouter()
@@ -226,8 +228,8 @@ export function StudentDashboard() {
               </SheetContent>
             </Sheet>
             <div className="flex items-center gap-2 font-bold text-xl">
-              <img src="/placeholder.svg?height=32&width=32" alt="شعار" className="h-8 w-8" />
-              <span className="hidden md:inline-block">نظام حضور معهد راية</span>
+            <Image src={LOGO}   alt="شعار" className="h-8 w-8" />
+            <span className="hidden md:inline-block">نظام حضور معهد راية</span>
             </div>
           </div>
           <div className="flex items-center gap-4">
@@ -827,4 +829,3 @@ export function StudentDashboard() {
     </div>
   )
 }
-

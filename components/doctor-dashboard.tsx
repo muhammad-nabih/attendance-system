@@ -1,4 +1,5 @@
 "use client"
+import LOGO from "@/public/LOGO.png"
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
@@ -24,6 +25,7 @@ import { DashboardHeader } from "@/components/dashboard-header"
 import { LogoutButton } from "@/components/logout-button"
 import { Progress } from "@/components/ui/progress"
 import { useDoctorCourses, useCourseStudents, useCourseAttendance } from "@/hooks/use-realtime-queries"
+import Image from "next/image"
 
 export function DoctorDashboard() {
   const router = useRouter()
@@ -125,14 +127,14 @@ export function DoctorDashboard() {
   }
 
   const calculateCourseStats = (courseId: string) => {
-    const total = attendanceRecords.filter((record) => record.course_id === courseId).length
+    const total = attendanceRecords.filter((record :any) => record.course_id === courseId).length
     const present = attendanceRecords.filter(
-      (record) => record.course_id === courseId && record.status === "present",
+      (record:any) => record.course_id === courseId && record.status === "present",
     ).length
     const absent = attendanceRecords.filter(
-      (record) => record.course_id === courseId && record.status === "absent",
+      (record:any) => record.course_id === courseId && record.status === "absent",
     ).length
-    const late = attendanceRecords.filter((record) => record.course_id === courseId && record.status === "late").length
+    const late = attendanceRecords.filter((record:any) => record.course_id === courseId && record.status === "late").length
 
     const presentPercentage = total > 0 ? Math.round((present / total) * 100) : 0
 
@@ -146,9 +148,9 @@ export function DoctorDashboard() {
   }
 
   const calculateStudentStats = (studentId: string) => {
-    const total = attendanceRecords.filter((record) => record.student.id === studentId).length
+    const total = attendanceRecords.filter((record:any) => record.student.id === studentId).length
     const present = attendanceRecords.filter(
-      (record) => record.student.id === studentId && record.status === "present",
+      (record:any) => record?.student?.id === studentId && record.status === "present",
     ).length
 
     const presentPercentage = total > 0 ? Math.round((present / total) * 100) : 0
@@ -160,17 +162,7 @@ export function DoctorDashboard() {
     }
   }
 
-  const calculateOverallStats = () => {
-    const totalCourses = courses.length
-    const totalStudents = students.length
-    const totalLectures = attendanceRecords.length
 
-    return {
-      totalCourses,
-      totalStudents,
-      totalLectures,
-    }
-  }
 
   if (isLoading || isLoadingCourses) {
     return (
@@ -227,7 +219,7 @@ export function DoctorDashboard() {
               </SheetContent>
             </Sheet>
             <div className="flex items-center gap-2 font-bold text-xl">
-              <img src="/placeholder.svg?height=32&width=32" alt="شعار" className="h-8 w-8" />
+              <Image src={LOGO}   alt="شعار" className="h-8 w-8" />
               <span className="hidden md:inline-block">نظام حضور معهد راية</span>
             </div>
           </div>
@@ -537,4 +529,3 @@ export function DoctorDashboard() {
     </DashboardShell>
   )
 }
-
