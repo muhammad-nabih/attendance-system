@@ -1,20 +1,18 @@
 "use client"
 
-import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 
-// Supabase client
-const supabase = createClient()
-
-// Función para obtener los cursos de un doctor
+// Hook to get courses for a doctor
 export function useDoctorCourses(doctorId: string | undefined) {
+  const supabase = createClient()
   const queryClient = useQueryClient()
 
   const {
     data: courses = [],
     isLoading,
-    error,
+    refetch,
   } = useQuery({
     queryKey: ["doctor-courses", doctorId],
     queryFn: async () => {
@@ -32,7 +30,7 @@ export function useDoctorCourses(doctorId: string | undefined) {
     enabled: !!doctorId,
   })
 
-  // Suscripción a cambios en tiempo real
+  // Set up realtime subscription
   useEffect(() => {
     if (!doctorId) return
 
@@ -47,7 +45,7 @@ export function useDoctorCourses(doctorId: string | undefined) {
           filter: `doctor_id=eq.${doctorId}`,
         },
         () => {
-          // Invalidar la consulta para que se vuelva a cargar
+          // Invalidate and refetch when data changes
           queryClient.invalidateQueries({ queryKey: ["doctor-courses", doctorId] })
         },
       )
@@ -58,47 +56,48 @@ export function useDoctorCourses(doctorId: string | undefined) {
     }
   }, [doctorId, queryClient])
 
-  return { courses, isLoading, error }
+  return { courses, isLoading, refetch }
 }
 
-// Función para obtener los estudiantes de un curso
+// Hook to get students for a course
 export function useCourseStudents(courseId: string | null) {
+  const supabase = createClient()
   const queryClient = useQueryClient()
 
   const {
     data: students = [],
     isLoading,
-    error,
+    refetch,
   } = useQuery({
     queryKey: ["course-students", courseId],
     queryFn: async () => {
       if (!courseId) return []
 
-      const { data, error } = await supabase
+      // First get student IDs from course_students
+      const { data: courseStudents, error: courseStudentsError } = await supabase
         .from("course_students")
-        .select(`
-          id,
-          student:student_id(
-            id,
-            name,
-            email
-          )
-        `)
+        .select("student_id")
         .eq("course_id", courseId)
 
-      if (error) throw error
+      if (courseStudentsError) throw courseStudentsError
 
-      // Transform the data to a more usable format
-      return data.map((item: any) => ({
-        id: item.student.id,
-        name: item.student.name,
-        email: item.student.email,
-      }))
+      if (!courseStudents.length) return []
+
+      // Then get student details
+      const studentIds = courseStudents.map((cs) => cs.student_id)
+      const { data: studentsData, error: studentsError } = await supabase
+        .from("users")
+        .select("*")
+        .in("id", studentIds)
+        .eq("role", "student")
+
+      if (studentsError) throw studentsError
+      return studentsData || []
     },
     enabled: !!courseId,
   })
 
-  // Suscripción a cambios en tiempo real
+  // Set up realtime subscription
   useEffect(() => {
     if (!courseId) return
 
@@ -113,7 +112,7 @@ export function useCourseStudents(courseId: string | null) {
           filter: `course_id=eq.${courseId}`,
         },
         () => {
-          // Invalidar la consulta para que se vuelva a cargar
+          // Invalidate and refetch when data changes
           queryClient.invalidateQueries({ queryKey: ["course-students", courseId] })
         },
       )
@@ -124,44 +123,67 @@ export function useCourseStudents(courseId: string | null) {
     }
   }, [courseId, queryClient])
 
-  return { students, isLoading, error }
+  return { students, isLoading, refetch }
 }
 
-// Función para obtener los registros de asistencia de un curso
+// Hook to get attendance records for a course
 export function useCourseAttendance(courseId: string | null) {
+  const supabase = createClient()
   const queryClient = useQueryClient()
 
   const {
     data: attendanceRecords = [],
     isLoading,
-    error,
+    refetch,
   } = useQuery({
     queryKey: ["course-attendance", courseId],
     queryFn: async () => {
       if (!courseId) return []
 
+      // Get attendance records with student details
       const { data, error } = await supabase
         .from("attendance")
         .select(`
           id,
+          student_id,
+          course_id,
           date,
           status,
-          student:student_id(
-            id,
-            name,
-            email
-          )
+          created_at,
+          session_id
         `)
         .eq("course_id", courseId)
         .order("date", { ascending: false })
 
       if (error) throw error
-      return data || []
+
+      // Get student details for each record
+      const studentIds = [...new Set(data.map((record) => record.student_id))]
+
+      if (studentIds.length > 0) {
+        const { data: students, error: studentsError } = await supabase
+          .from("users")
+          .select("id, name, email")
+          .in("id", studentIds)
+
+        if (studentsError) throw studentsError
+
+        // Map student details to attendance records
+        return data.map((record) => {
+          const student = students.find((s) => s.id === record.student_id)
+          return {
+            ...record,
+            student: student || { name: "Unknown", email: "Unknown" },
+          }
+        })
+      }
+
+      return data
     },
     enabled: !!courseId,
   })
 
-  // Suscripción a cambios en tiempo real
+  // Set up realtime subscription
   useEffect(() => {
     if (!courseId) return
 
@@ -176,7 +198,7 @@ export function useCourseAttendance(courseId: string | null) {
           filter: `course_id=eq.${courseId}`,
         },
         () => {
-          // Invalidar la consulta para que se vuelva a cargar
+          // Invalidate and refetch when data changes
           queryClient.invalidateQueries({ queryKey: ["course-attendance", courseId] })
         },
       )
@@ -187,48 +209,60 @@ export function useCourseAttendance(courseId: string | null) {
     }
   }, [courseId, queryClient])
 
-  return { attendanceRecords, isLoading, error }
+  return { attendanceRecords, isLoading, refetch }
 }
 
-// Función para obtener los cursos de un estudiante
+// Hook to get courses for a student
 export function useStudentCourses(studentId: string | undefined) {
+  const supabase = createClient()
   const queryClient = useQueryClient()
 
   const {
     data: courses = [],
     isLoading,
-    error,
+    refetch,
   } = useQuery({
     queryKey: ["student-courses", studentId],
     queryFn: async () => {
       if (!studentId) return []
 
-      const { data, error } = await supabase
+      // First get course IDs from course_students
+      const { data: courseStudents, error: courseStudentsError } = await supabase
         .from("course_students")
-        .select(`
-          course:course_id(
-            id,
-            name,
-            doctor:doctor_id(
-              name
-            )
-          )
-        `)
+        .select("course_id")
         .eq("student_id", studentId)
 
-      if (error) throw error
+      if (courseStudentsError) throw courseStudentsError
 
-      // Transform the data to a more usable format
-      return data.map((item: any) => ({
-        id: item.course.id,
-        name: item.course.name,
-        doctorName: item.course.doctor.name,
-      }))
+      if (!courseStudents.length) return []
+
+      // Then get course details with doctor name
+      const courseIds = courseStudents.map((cs) => cs.course_id)
+      const { data: coursesData, error: coursesError } = await supabase
+        .from("courses")
+        .select(`
+          id,
+          name,
+          doctor_id,
+          created_at,
+          users:doctor_id (name)
+        `)
+        .in("id", courseIds)
+
+      if (coursesError) throw coursesError
+
+      // Format the data to include doctor name
+      return (
+        coursesData?.map((course:any) => ({
+          ...course,
+          doctorName: course.users?.name || "Unknown",
+        })) || []
+      )
     },
     enabled: !!studentId,
   })
 
-  // Suscripción a cambios en tiempo real
+  // Set up realtime subscription
   useEffect(() => {
     if (!studentId) return
 
@@ -243,7 +277,7 @@ export function useStudentCourses(studentId: string | undefined) {
           filter: `student_id=eq.${studentId}`,
         },
         () => {
-          // Invalidar la consulta para que se vuelva a cargar
+          // Invalidate and refetch when data changes
           queryClient.invalidateQueries({ queryKey: ["student-courses", studentId] })
         },
       )
@@ -254,29 +288,33 @@ export function useStudentCourses(studentId: string | undefined) {
     }
   }, [studentId, queryClient])
 
-  return { courses, isLoading, error }
+  return { courses, isLoading, refetch }
 }
 
-// Función para obtener los registros de asistencia de un estudiante
+// Hook to get attendance records for a student
 export function useStudentAttendance(studentId: string | undefined) {
+  const supabase = createClient()
   const queryClient = useQueryClient()
 
   const {
     data: attendanceRecords = [],
     isLoading,
-    error,
+    refetch,
   } = useQuery({
     queryKey: ["student-attendance", studentId],
     queryFn: async () => {
       if (!studentId) return []
 
+      // Get attendance records for this student
       const { data, error } = await supabase
         .from("attendance")
         .select(`
           id,
+          student_id,
+          course_id,
           date,
           status,
-          course_id
+          created_at
         `)
         .eq("student_id", studentId)
         .order("date", { ascending: false })
@@ -287,7 +325,7 @@ export function useStudentAttendance(studentId: string | undefined) {
     enabled: !!studentId,
   })
 
-  // Suscripción a cambios en tiempo real
+  // Set up realtime subscription
   useEffect(() => {
     if (!studentId) return
 
@@ -302,7 +340,7 @@ export function useStudentAttendance(studentId: string | undefined) {
           filter: `student_id=eq.${studentId}`,
         },
         () => {
-          // Invalidar la consulta para que se vuelva a cargar
+          // Invalidate and refetch when data changes
           queryClient.invalidateQueries({ queryKey: ["student-attendance", studentId] })
         },
       )
@@ -313,14 +351,5 @@ export function useStudentAttendance(studentId: string | undefined) {
     }
   }, [studentId, queryClient])
 
-  return { attendanceRecords, isLoading, error }
+  return { attendanceRecords, isLoading, refetch }
 }
-
-// Función para actualizar el estado de asistencia
-export async function updateAttendanceStatus(recordId: string, status: "present" | "absent" | "late") {
-  const { error } = await supabase.from("attendance").update({ status }).eq("id", recordId)
-
-  if (error) throw error
-  return true
-}
-

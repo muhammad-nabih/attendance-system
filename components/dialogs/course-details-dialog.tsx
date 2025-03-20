@@ -12,13 +12,7 @@ interface CourseDetailsDialogProps {
   onOpenChange: (open: boolean) => void
   course: any
   students: any[]
-  attendanceStats: {
-    present: number
-    absent: number
-    late: number
-    total: number
-    presentPercentage: number
-  }
+  attendanceStats: any
 }
 
 export function CourseDetailsDialog({

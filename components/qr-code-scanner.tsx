@@ -1,17 +1,15 @@
 "use client"
 
-import { useState, useCallback } from "react"
-import { Html5Qrcode } from "html5-qrcode"
-import { useToast } from "@/components/ui/use-toast"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { AttendanceCodeForm } from "@/components/attendance-code-form"
-import { createClient } from "@supabase/supabase-js"
-import { Button } from "@/components/ui/button"
+import type React from "react"
 
-// Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ""
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_KEY || ""
-const supabase = createClient(supabaseUrl, supabaseKey)
+import { useState, useEffect } from "react"
+import { Html5Qrcode } from "html5-qrcode"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { createClient } from "@/lib/supabase/client"
+import { useToast } from "@/components/ui/use-toast"
+import { Loader2, Camera, CameraOff } from "lucide-react"
 
 interface QRCodeScannerProps {
   studentId: string
@@ -19,167 +17,204 @@ interface QRCodeScannerProps {
 
 export function QRCodeScanner({ studentId }: QRCodeScannerProps) {
   const { toast } = useToast()
-  const [isProcessing, setIsProcessing] = useState(false)
+  const supabase = createClient()
   const [isScanning, setIsScanning] = useState(false)
-  const [scanner, setScanner] = useState<Html5Qrcode | null>(null)
+  const [manualCode, setManualCode] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [html5QrCode, setHtml5QrCode] = useState<Html5Qrcode | null>(null)
 
-  const startScanner = useCallback(() => {
-    setIsScanning(true)
+  useEffect(() => {
+    // تهيئة الماسح
+    const qrCodeScanner = new Html5Qrcode("qr-reader")
+    setHtml5QrCode(qrCodeScanner)
 
-    const html5QrCode = new Html5Qrcode("qr-reader")
-    setScanner(html5QrCode)
-
-    html5QrCode
-      .start(
-        { facingMode: "environment" },
-        {
-          fps: 10,
-          qrbox: { width: 250, height: 250 },
-        },
-        async (decodedText) => {
-          // Stop scanning after successful scan
-          await html5QrCode.stop()
-          setIsScanning(false)
-          handleDecode(decodedText)
-        },
-        (errorMessage) => {
-          // Handle scan error silently
-          console.log(errorMessage)
-        },
-      )
-      .catch((err) => {
-        console.error("Error starting scanner:", err)
-        toast({
-          variant: "destructive",
-          title: "خطأ في تشغيل الماسح",
-          description: "لم نتمكن من الوصول إلى الكاميرا، يرجى التأكد من منح الإذن",
-        })
-        setIsScanning(false)
-      })
+    // تنظيف عند إلغاء التحميل
+    return () => {
+      if (qrCodeScanner.isScanning) {
+        qrCodeScanner.stop().catch((error) => console.error("Error stopping scanner:", error))
+      }
+    }
   }, [])
 
-  const stopScanner = useCallback(() => {
-    if (scanner) {
-      scanner
-        .stop()
-        .then(() => {
-          setIsScanning(false)
-        })
-        .catch((error) => {
-          console.error("Error stopping scanner:", error)
-        })
+  const startScanner = async () => {
+    if (!html5QrCode) return
+
+    setIsScanning(true)
+    const config = { fps: 10, qrbox: { width: 250, height: 250 } }
+
+    try {
+      await html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess, () => {})
+    } catch (error) {
+      console.error("Error starting scanner:", error)
+      setIsScanning(false)
+      toast({
+        variant: "destructive",
+        title: "خطأ في تشغيل الماسح",
+        description: "تعذر الوصول إلى الكاميرا. يرجى التحقق من إذن الكاميرا أو استخدام الإدخال اليدوي.",
+      })
     }
-  }, [scanner])
+  }
 
-  const handleDecode = useCallback(
-    async (result: string) => {
-      if (isProcessing) return
-      setIsProcessing(true)
+  const stopScanner = async () => {
+    if (!html5QrCode || !html5QrCode.isScanning) return
 
-      try {
-        // Parse the QR code data
-        const data = JSON.parse(result)
-        const { code, courseId, sessionId } = data
+    try {
+      await html5QrCode.stop()
+      setIsScanning(false)
+    } catch (error) {
+      console.error("Error stopping scanner:", error)
+    }
+  }
 
-        // Verify the session
-        const { data: session, error: sessionError } = await supabase
-          .from("sessions")
-          .select("*")
-          .eq("id", sessionId)
-          .eq("code", code)
-          .eq("is_active", true)
-          .gt("expires_at", new Date().toISOString())
-          .single()
+  const onScanSuccess = async (decodedText: string) => {
+    // إيقاف المسح بعد المسح الناجح
+    await stopScanner()
+    // معالجة الرمز
+    await processCode(decodedText)
+  }
 
-        if (sessionError || !session) {
-          throw new Error("رمز الجلسة غير صحيح أو منتهي الصلاحية")
-        }
+  const handleManualSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!manualCode.trim()) return
 
-        // Verify student enrollment
-        const { data: enrollment, error: enrollmentError } = await supabase
-          .from("course_students")
-          .select("id")
-          .eq("student_id", studentId)
-          .eq("course_id", courseId)
-          .single()
+    await processCode(manualCode.trim())
+    setManualCode("")
+  }
 
-        if (enrollmentError || !enrollment) {
-          throw new Error("أنت غير مسجل في هذه الدورة")
-        }
+  const processCode = async (code: string) => {
+    setIsSubmitting(true)
 
-        // Check for existing attendance
-        const { data: existingAttendance, error: existingError } = await supabase
-          .from("attendance")
-          .select("id")
-          .eq("student_id", studentId)
-          .eq("course_id", courseId)
-          .eq("date", session.date)
-          .maybeSingle()
+    try {
+      // أولاً، تحقق مما إذا كان الرمز صالحًا ونشطًا
+      const { data: session, error: sessionError } = await supabase
+        .from("sessions")
+        .select("*")
+        .eq("code", code)
+        .eq("is_active", true)
+        .single()
 
-        if (existingAttendance) {
-          throw new Error("تم تسجيل حضورك مسبقاً لهذه الجلسة")
-        }
-
-        // Record attendance
-        const { error: attendanceError } = await supabase.from("attendance").insert([
-          {
-            student_id: studentId,
-            course_id: courseId,
-            date: session.date,
-            status: "present",
-          },
-        ])
-
-        if (attendanceError) throw attendanceError
-
-        toast({
-          title: "تم تسجيل الحضور بنجاح",
-          description: "تم تسجيل حضورك للجلسة بنجاح",
-        })
-      } catch (error: any) {
-        console.error("Error processing QR code:", error)
-        toast({
-          variant: "destructive",
-          title: "خطأ في تسجيل الحضور",
-          description: error.message || "حدث خطأ أثناء تسجيل الحضور، يرجى المحاولة مرة أخرى",
-        })
-      } finally {
-        setIsProcessing(false)
+      if (sessionError) {
+        throw new Error("رمز غير صالح أو منتهي الصلاحية")
       }
-    },
-    [studentId, toast, isProcessing],
-  )
+
+      // تحقق مما إذا كانت المحاضرة قد انتهت صلاحيتها
+      const now = new Date()
+      const expiryDate = new Date(session.expires_at)
+      if (now > expiryDate) {
+        throw new Error("انتهت صلاحية رمز الحضور")
+      }
+
+      // تحقق مما إذا كان الطالب مسجلاً في هذه الدورة
+      const { data: enrollment, error: enrollmentError } = await supabase
+        .from("course_students")
+        .select("*")
+        .eq("course_id", session.course_id)
+        .eq("student_id", studentId)
+        .single()
+
+      if (enrollmentError) {
+        throw new Error("أنت غير مسجل في هذه الدورة")
+      }
+
+      // تحقق مما إذا كان الطالب قد سجل حضوره بالفعل لهذه المحاضرة المحددة
+      const { data: existingAttendance, error: attendanceCheckError } = await supabase
+        .from("attendance")
+        .select("*")
+        .eq("student_id", studentId)
+        .eq("session_id", session.id)
+
+      if (!attendanceCheckError && existingAttendance && existingAttendance.length > 0) {
+        throw new Error("لقد سجلت حضورك بالفعل لهذه المحاضرة")
+      }
+
+      // حساب حالة الحضور بناءً على الوقت
+      const sessionCreationTime = new Date(session.created_at).getTime()
+      const currentTime = now.getTime()
+      const timeDifference = currentTime - sessionCreationTime
+
+      // تحديد الحدود الزمنية (30 دقيقة للتأخير، ساعتان للغياب)
+      const lateThreshold = 30 * 60 * 1000 // 30 دقيقة بالميلي ثانية
+      const absentThreshold = 2 * 60 * 60 * 1000 // ساعتان بالميلي ثانية
+
+      let status = "present"
+      if (timeDifference > absentThreshold) {
+        status = "absent"
+      } else if (timeDifference > lateThreshold) {
+        status = "late"
+      }
+
+      // تسجيل الحضور باستخدام معرف المحاضرة
+      const { error: insertError } = await supabase.from("attendance").insert({
+        student_id: studentId,
+        course_id: session.course_id,
+        date: session.date,
+        status,
+        session_id: session.id, // استخدام معرف المحاضرة
+      })
+
+      if (insertError) throw insertError
+
+      // عرض رسالة نجاح
+      toast({
+        title: "تم تسجيل الحضور",
+        description:
+          status === "present"
+            ? "تم تسجيل حضورك بنجاح"
+            : status === "late"
+              ? "تم تسجيل حضورك بنجاح (متأخر)"
+              : "تم تسجيل حضورك ولكن تم اعتبارك غائباً بسبب التأخير الشديد",
+      })
+    } catch (error: any) {
+      console.error("Error processing code:", error)
+      toast({
+        variant: "destructive",
+        title: "خطأ في تسجيل الحضور",
+        description: error.message || "حدث خطأ أثناء تسجيل الحضور",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>تسجيل الحضور بواسطة QR</CardTitle>
-        <CardDescription>امسح رمز QR لتسجيل حضورك</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div id="qr-reader" className="w-full max-w-sm mx-auto overflow-hidden rounded-lg"></div>
+    <div className="space-y-4">
+      <div id="qr-reader" className="w-full max-w-sm mx-auto overflow-hidden rounded-lg"></div>
 
-        <div className="flex justify-center">
-          {!isScanning ? (
-            <Button onClick={startScanner}>بدء المسح</Button>
-          ) : (
-            <Button variant="destructive" onClick={stopScanner}>
-              إيقاف المسح
-            </Button>
-          )}
+      <div className="flex justify-center">
+        {isScanning ? (
+          <Button variant="outline" onClick={stopScanner} disabled={isSubmitting}>
+            <CameraOff className="ml-2 h-4 w-4" />
+            إيقاف المسح
+          </Button>
+        ) : (
+          <Button onClick={startScanner} disabled={isSubmitting}>
+            <Camera className="ml-2 h-4 w-4" />
+            بدء المسح
+          </Button>
+        )}
+      </div>
+
+      <div className="text-center">
+        <p className="text-sm text-muted-foreground">أو</p>
+      </div>
+
+      <form onSubmit={handleManualSubmit} className="space-y-2">
+        <Label htmlFor="manual-code">إدخال الرمز يدوياً</Label>
+        <div className="flex gap-2">
+          <Input
+            id="manual-code"
+            value={manualCode}
+            onChange={(e) => setManualCode(e.target.value)}
+            placeholder="أدخل رمز الحضور"
+            disabled={isSubmitting}
+          />
+          <Button type="submit" disabled={!manualCode.trim() || isSubmitting}>
+            {isSubmitting ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : null}
+            إرسال
+          </Button>
         </div>
-
-        <div className="text-center text-sm text-muted-foreground">
-          {isProcessing
-            ? "جاري معالجة الرمز..."
-            : isScanning
-              ? "وجه الكاميرا نحو رمز QR لتسجيل الحضور"
-              : "اضغط على بدء المسح لتشغيل الكاميرا"}
-        </div>
-
-        <AttendanceCodeForm studentId={studentId} />
-      </CardContent>
-    </Card>
+      </form>
+    </div>
   )
 }
 
