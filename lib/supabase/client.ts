@@ -5,9 +5,9 @@ import { createBrowserClient } from "@supabase/ssr"
 
 // Define a function to create a Supabase client for client-side operations
 export const createClient = () => {
-  const supabase = createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_KEY!)
+  const supabase = createBrowserClient<Database>(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_KEY!)
 
-  // تفعيل خاصية الـ realtime لجميع الجداول
+
   supabase
     .channel("schema-db-changes")
     .on(
@@ -22,4 +22,3 @@ export const createClient = () => {
 
   return supabase
 }
-

@@ -379,7 +379,7 @@ export function DoctorDashboard() {
       })
 
       // Get the session creation time
-      const sessionTime = new Date(sessionData.created_at).getTime()
+      const sessionTime = new Date(sessionData.created_at!).getTime()
       const currentTime = new Date().getTime()
 
       // Calculate time thresholds (30 minutes and 2 hours in milliseconds)
@@ -659,7 +659,7 @@ export function DoctorDashboard() {
                         <div>
                           <CardTitle>{course.name}</CardTitle>
                           <CardDescription className="my-5">
-                            تم الإنشاء في {new Date(course.created_at).toLocaleDateString("ar-EG")}
+                            تم الإنشاء في {new Date(course.created_at!).toLocaleDateString("ar-EG")}
                           </CardDescription>
                         </div>
                         <DropdownMenu>
