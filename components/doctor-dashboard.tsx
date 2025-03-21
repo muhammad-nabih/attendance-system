@@ -1,46 +1,37 @@
-"use client"
-import LOGO from "@/public/LOGO.png"
+'use client';
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import LOGO from '@/public/LOGO.png';
+import { useQueryClient } from '@tanstack/react-query';
 import {
-  Plus,
-  Users,
-  BookOpen,
-  ClipboardList,
-  User,
-  Menu,
-  FileText,
-  BarChart3,
-  Trash2,
   AlertCircle,
+  BarChart3,
+  BookOpen,
   CheckSquare,
+  ClipboardList,
+  FileText,
+  Menu,
+  Plus,
   Square,
-} from "lucide-react"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { DashboardShell } from "@/components/dashboard-shell"
-import { QRCodeGenerator } from "@/components/qr-code-generator"
-import { AddCourseDialog } from "@/components/dialogs/add-course-dialog"
-import { AddStudentDialog } from "@/components/dialogs/add-student-dialog"
-import { CourseDetailsDialog } from "@/components/dialogs/course-details-dialog"
-import { createClient } from "@/lib/supabase/client"
-import { useToast } from "@/components/ui/use-toast"
-import { AttendanceTable } from "@/components/attendance-table"
-import { ProfileSection } from "@/components/profile-section"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { ThemeToggle } from "@/components/theme-toggle"
-import { Separator } from "@/components/ui/separator"
-import { DashboardHeader } from "@/components/dashboard-header"
-import { LogoutButton } from "@/components/logout-button"
-import { Progress } from "@/components/ui/progress"
-import { useDoctorCourses, useCourseStudents, useCourseAttendance } from "@/hooks/use-realtime-queries"
-import { useCourseOperations } from "@/hooks/use-course-operations"
-import { useStudentOperations } from "@/hooks/use-student-operations"
-import Image from "next/image"
+  Trash2,
+  User,
+  Users,
+} from 'lucide-react';
+
+import { useEffect, useState } from 'react';
+
+import Image from 'next/image';
+import { useRouter } from 'next/navigation';
+
+import { AttendanceTable } from '@/components/attendance-table';
+import { DashboardHeader } from '@/components/dashboard-header';
+import { DashboardShell } from '@/components/dashboard-shell';
+import { AddCourseDialog } from '@/components/dialogs/add-course-dialog';
+import { AddStudentDialog } from '@/components/dialogs/add-student-dialog';
+import { CourseDetailsDialog } from '@/components/dialogs/course-details-dialog';
+import { LogoutButton } from '@/components/logout-button';
+import { ProfileSection } from '@/components/profile-section';
+import { QRCodeGenerator } from '@/components/qr-code-generator';
+import { ThemeToggle } from '@/components/theme-toggle';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -50,40 +41,70 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import { Badge } from "@/components/ui/badge"
-import { Label } from "@/components/ui/label"
-import { useQueryClient } from "@tanstack/react-query"
+} from '@/components/ui/alert-dialog';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Label } from '@/components/ui/label';
+import { Progress } from '@/components/ui/progress';
+import { Separator } from '@/components/ui/separator';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useToast } from '@/components/ui/use-toast';
+
+import { createClient } from '@/lib/supabase/client';
+
+import { useCourseOperations } from '@/hooks/use-course-operations';
+import {
+  useCourseAttendance,
+  useCourseStudents,
+  useDoctorCourses,
+} from '@/hooks/use-realtime-queries';
+import { useStudentOperations } from '@/hooks/use-student-operations';
 
 export function DoctorDashboard() {
   // Add queryClient at the top of the component
-  const queryClient = useQueryClient()
-  const router = useRouter()
-  const { toast } = useToast()
-  const supabase = createClient()
-  const [user, setUser] = useState<any>(null)
-  const [selectedCourse, setSelectedCourse] = useState<string | null>(null)
-  const [isAddCourseOpen, setIsAddCourseOpen] = useState(false)
-  const [isAddStudentOpen, setIsAddStudentOpen] = useState(false)
-  const [isCourseDetailsOpen, setIsCourseDetailsOpen] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState("dashboard")
-  const [courseStatsMap, setCourseStatsMap] = useState<Record<string, any>>({})
-  const [studentStatsMap, setStudentStatsMap] = useState<Record<string, any>>({})
+  const queryClient = useQueryClient();
+  const router = useRouter();
+  const { toast } = useToast();
+  const supabase = createClient();
+  const [user, setUser] = useState<any>(null);
+  const [selectedCourse, setSelectedCourse] = useState<string | null>(null);
+  const [isAddCourseOpen, setIsAddCourseOpen] = useState(false);
+  const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
+  const [isCourseDetailsOpen, setIsCourseDetailsOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [courseStatsMap, setCourseStatsMap] = useState<Record<string, any>>({});
+  const [studentStatsMap, setStudentStatsMap] = useState<Record<string, any>>({});
 
   // Student selection state
-  const [selectedStudents, setSelectedStudents] = useState<string[]>([])
-  const [isMultiSelectMode, setIsMultiSelectMode] = useState(false)
-  const [isDeleteStudentsDialogOpen, setIsDeleteStudentsDialogOpen] = useState(false)
+  const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
+  const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
+  const [isDeleteStudentsDialogOpen, setIsDeleteStudentsDialogOpen] = useState(false);
 
   // Course operations
-  const [courseToDelete, setCourseToDelete] = useState<any>(null)
-  const [isDeleteCourseDialogOpen, setIsDeleteCourseDialogOpen] = useState(false)
-  const [courseToEdit, setCourseToEdit] = useState<any>(null)
-  const [isEditCourseDialogOpen, setIsEditCourseDialogOpen] = useState(false)
-  const [newCourseName, setNewCourseName] = useState("")
-  const [isDeleteAllCoursesDialogOpen, setIsDeleteAllCoursesDialogOpen] = useState(false)
-  const [isDeleteAllStudentsDialogOpen, setIsDeleteAllStudentsDialogOpen] = useState(false)
+  const [courseToDelete, setCourseToDelete] = useState<any>(null);
+  const [isDeleteCourseDialogOpen, setIsDeleteCourseDialogOpen] = useState(false);
+  const [courseToEdit, setCourseToEdit] = useState<any>(null);
+  const [isEditCourseDialogOpen, setIsEditCourseDialogOpen] = useState(false);
+  const [newCourseName, setNewCourseName] = useState('');
+  const [isDeleteAllCoursesDialogOpen, setIsDeleteAllCoursesDialogOpen] = useState(false);
+  const [isDeleteAllStudentsDialogOpen, setIsDeleteAllStudentsDialogOpen] = useState(false);
 
   // Custom hooks for operations
   const {
@@ -91,9 +112,13 @@ export function DoctorDashboard() {
     updateCourseName,
     deleteAllCourses,
     isLoading: isCourseOperationLoading,
-  } = useCourseOperations()
+  } = useCourseOperations();
 
-  const { deleteStudents, deleteAllStudents, isLoading: isStudentOperationLoading } = useStudentOperations()
+  const {
+    deleteStudents,
+    deleteAllStudents,
+    isLoading: isStudentOperationLoading,
+  } = useStudentOperations();
 
   // Fetch user data
   useEffect(() => {
@@ -102,210 +127,221 @@ export function DoctorDashboard() {
         const {
           data: { user: authUser },
           error: authError,
-        } = await supabase.auth.getUser()
-        if (authError) throw authError
+        } = await supabase.auth.getUser();
+        if (authError) throw authError;
 
         if (!authUser) {
-          router.push("/login")
-          return
+          router.push('/login');
+          return;
         }
 
         // Get user details from the users table
         const { data: userData, error: userError } = await supabase
-          .from("users")
-          .select("*")
-          .eq("id", authUser.id)
-          .single()
+          .from('users')
+          .select('*')
+          .eq('id', authUser.id)
+          .single();
 
-        if (userError) throw userError
+        if (userError) throw userError;
 
-        if (userData.role !== "doctor") {
-          router.push("/")
-          return
+        if (userData.role !== 'doctor') {
+          router.push('/');
+          return;
         }
 
-        setUser(userData)
-        setIsLoading(false)
+        setUser(userData);
+        setIsLoading(false);
       } catch (error: any) {
-        console.error("Error fetching user:", error)
+        console.error('Error fetching user:', error);
         toast({
-          variant: "destructive",
-          title: "خطأ في تحميل البيانات",
-          description: "حدث خطأ أثناء تحميل بيانات المستخدم",
-        })
-        router.push("/login")
+          variant: 'destructive',
+          title: 'خطأ في تحميل البيانات',
+          description: 'حدث خطأ أثناء تحميل بيانات المستخدم',
+        });
+        router.push('/login');
       }
-    }
+    };
 
-    fetchUser()
-  }, [])
+    fetchUser();
+  }, []);
 
   // Usar los hooks de React Query
-  const { courses, isLoading: isLoadingCourses, refetch: refetchCourses } = useDoctorCourses(user?.id)
-  const { students, refetch: refetchStudents } = useCourseStudents(selectedCourse)
-  const { attendanceRecords, refetch: refetchAttendance } = useCourseAttendance(selectedCourse)
+  const {
+    courses,
+    isLoading: isLoadingCourses,
+    refetch: refetchCourses,
+  } = useDoctorCourses(user?.id);
+  const { students, refetch: refetchStudents } = useCourseStudents(selectedCourse);
+  const { attendanceRecords, refetch: refetchAttendance } = useCourseAttendance(selectedCourse);
 
-// FIXME: STUDENT NUMBER SHOULD FIXED
-  console.log(courses)
-  console.log(students)
+  // FIXME: STUDENT NUMBER SHOULD FIXED
+  console.log(courses);
+  console.log(students);
   // Establecer el curso seleccionado por defecto
   useEffect(() => {
     if (courses.length > 0 && !selectedCourse) {
-      setSelectedCourse(courses[0].id)
+      setSelectedCourse(courses[0].id);
     }
-  }, [courses, selectedCourse])
+  }, [courses, selectedCourse]);
 
   // Handle course selection
   const handleCourseSelect = (courseId: string) => {
-    setSelectedCourse(courseId)
+    setSelectedCourse(courseId);
     // Reset student selection when changing courses
-    setSelectedStudents([])
-    setIsMultiSelectMode(false)
-  }
+    setSelectedStudents([]);
+    setIsMultiSelectMode(false);
+  };
 
   // Handle course refresh after adding a new course
   const handleCourseAdded = () => {
-    refetchCourses()
-  }
+    refetchCourses();
+  };
 
   // Handle student refresh after adding new students
   const handleStudentsAdded = () => {
-    refetchStudents()
-  }
+    refetchStudents();
+  };
 
   // Toggle student selection for multi-select mode
   const toggleStudentSelection = (studentId: string) => {
     if (selectedStudents.includes(studentId)) {
-      setSelectedStudents(selectedStudents.filter((id) => id !== studentId))
+      setSelectedStudents(selectedStudents.filter(id => id !== studentId));
     } else {
-      setSelectedStudents([...selectedStudents, studentId])
+      setSelectedStudents([...selectedStudents, studentId]);
     }
-  }
+  };
 
   // Toggle multi-select mode
   const toggleMultiSelectMode = () => {
-    setIsMultiSelectMode(!isMultiSelectMode)
+    setIsMultiSelectMode(!isMultiSelectMode);
     if (isMultiSelectMode) {
       // Clear selections when exiting multi-select mode
-      setSelectedStudents([])
+      setSelectedStudents([]);
     }
-  }
+  };
 
   // Handle deleting selected students
   const handleDeleteSelectedStudents = async () => {
-    if (selectedStudents.length === 0 || !selectedCourse) return
+    if (selectedStudents.length === 0 || !selectedCourse) return;
 
-    const success = await deleteStudents(selectedStudents, selectedCourse)
+    const success = await deleteStudents(selectedStudents, selectedCourse);
 
     if (success) {
       // Reset selection state
-      setSelectedStudents([])
-      setIsMultiSelectMode(false)
-      setIsDeleteStudentsDialogOpen(false)
+      setSelectedStudents([]);
+      setIsMultiSelectMode(false);
+      setIsDeleteStudentsDialogOpen(false);
     }
-  }
+  };
 
   // Handle deleting all students from a course
   const handleDeleteAllStudents = async () => {
-    if (!selectedCourse) return
+    if (!selectedCourse) return;
 
-    const success = await deleteAllStudents(selectedCourse)
+    const success = await deleteAllStudents(selectedCourse);
 
     if (success) {
-      setIsDeleteAllStudentsDialogOpen(false)
+      setIsDeleteAllStudentsDialogOpen(false);
     }
-  }
+  };
 
   // Handle course deletion
   const handleDeleteCourse = async () => {
-    if (!courseToDelete) return
+    if (!courseToDelete) return;
 
-    const success = await deleteCourse(courseToDelete.id)
+    const success = await deleteCourse(courseToDelete.id);
 
     if (success) {
       // Reset selected course if it was deleted
       if (selectedCourse === courseToDelete.id) {
-        setSelectedCourse(null)
+        setSelectedCourse(null);
       }
-      setCourseToDelete(null)
-      setIsDeleteCourseDialogOpen(false)
+      setCourseToDelete(null);
+      setIsDeleteCourseDialogOpen(false);
     }
-  }
+  };
 
   // Handle course name update
   const handleEditCourseName = async () => {
-    if (!courseToEdit || !newCourseName.trim()) return
+    if (!courseToEdit || !newCourseName.trim()) return;
 
-    const success = await updateCourseName(courseToEdit.id, newCourseName)
+    const success = await updateCourseName(courseToEdit.id, newCourseName);
 
     if (success) {
-      setCourseToEdit(null)
-      setNewCourseName("")
-      setIsEditCourseDialogOpen(false)
+      setCourseToEdit(null);
+      setNewCourseName('');
+      setIsEditCourseDialogOpen(false);
     }
-  }
+  };
 
   // Handle deleting all courses
   const handleDeleteAllCourses = async () => {
-    if (!user?.id) return
+    if (!user?.id) return;
 
-    const success = await deleteAllCourses(user.id)
+    const success = await deleteAllCourses(user.id);
 
     if (success) {
-      setSelectedCourse(null)
-      setIsDeleteAllCoursesDialogOpen(false)
+      setSelectedCourse(null);
+      setIsDeleteAllCoursesDialogOpen(false);
     }
-  }
+  };
 
   const refreshUserData = async () => {
-    const { data: userData, error: userError } = await supabase.from("users").select("*").eq("id", user.id).single()
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', user.id)
+      .single();
 
     if (userError) {
       toast({
-        variant: "destructive",
-        title: "Error refreshing user data",
-        description: "Failed to update user information.",
-      })
-      return
+        variant: 'destructive',
+        title: 'Error refreshing user data',
+        description: 'Failed to update user information.',
+      });
+      return;
     }
 
-    setUser(userData)
-  }
+    setUser(userData);
+  };
 
   // Function to get sessions for a course
   const getCourseSessions = async (courseId: string) => {
     try {
       const { data, error } = await supabase
-        .from("sessions")
-        .select("*")
-        .eq("course_id", courseId)
-        .order("session_number", { ascending: true })
+        .from('sessions')
+        .select('*')
+        .eq('course_id', courseId)
+        .order('session_number', { ascending: true });
 
-      if (error) throw error
-      return data || []
+      if (error) throw error;
+      return data || [];
     } catch (error) {
-      console.error("Error fetching sessions:", error)
-      return []
+      console.error('Error fetching sessions:', error);
+      return [];
     }
-  }
+  };
 
   // Calculate course statistics with accurate session count
   const calculateCourseStats = async (courseId: string) => {
     // Get all sessions for this course to get accurate count
-    const sessions = await getCourseSessions(courseId)
-    const totalSessions = sessions.length
+    const sessions = await getCourseSessions(courseId);
+    const totalSessions = sessions.length;
 
     // Filter attendance records for this course
-    const courseAttendance = attendanceRecords.filter((record: any) => record.course_id === courseId)
+    const courseAttendance = attendanceRecords.filter(
+      (record: any) => record.course_id === courseId
+    );
 
     // Count by status
-    const present = courseAttendance.filter((record: any) => record.status === "present").length
-    const absent = courseAttendance.filter((record: any) => record.status === "absent").length
-    const late = courseAttendance.filter((record: any) => record.status === "late").length
+    const present = courseAttendance.filter((record: any) => record.status === 'present').length;
+    const absent = courseAttendance.filter((record: any) => record.status === 'absent').length;
+    const late = courseAttendance.filter((record: any) => record.status === 'late').length;
 
     // Calculate percentage based on total sessions and enrolled students
-    const totalPossibleAttendances = totalSessions * students.length
-    const presentPercentage = totalPossibleAttendances > 0 ? Math.round((present / totalPossibleAttendances) * 100) : 0
+    const totalPossibleAttendances = totalSessions * students.length;
+    const presentPercentage =
+      totalPossibleAttendances > 0 ? Math.round((present / totalPossibleAttendances) * 100) : 0;
 
     return {
       totalSessions,
@@ -313,183 +349,186 @@ export function DoctorDashboard() {
       absent,
       late,
       presentPercentage,
-    }
-  }
+    };
+  };
 
   // Calculate student attendance statistics
   const calculateStudentStats = async (studentId: string, courseId: string) => {
     // Get all sessions for this course
-    const sessions = await getCourseSessions(courseId)
-    const totalSessions = sessions.length
+    const sessions = await getCourseSessions(courseId);
+    const totalSessions = sessions.length;
 
     // Get attendance records for this student in this course
     const studentAttendance = attendanceRecords.filter(
-      (record: any) => record.student_id === studentId && record.course_id === courseId,
-    )
+      (record: any) => record.student_id === studentId && record.course_id === courseId
+    );
 
     // Count present records
-    const present = studentAttendance.filter((record: any) => record.status === "present").length
+    const present = studentAttendance.filter((record: any) => record.status === 'present').length;
 
     // Calculate percentage
-    const presentPercentage = totalSessions > 0 ? Math.round((present / totalSessions) * 100) : 0
+    const presentPercentage = totalSessions > 0 ? Math.round((present / totalSessions) * 100) : 0;
 
     return {
       totalSessions,
       present,
       presentPercentage,
-    }
-  }
+    };
+  };
 
   // تحديث وظيفة تحديث حالة الحضور
   const updateAttendanceStatus = async (sessionId: string) => {
     try {
       // Get the session details
       const { data: sessionData, error: sessionError } = await supabase
-        .from("sessions")
-        .select("*")
-        .eq("id", sessionId)
-        .single()
+        .from('sessions')
+        .select('*')
+        .eq('id', sessionId)
+        .single();
 
-      if (sessionError) throw sessionError
+      if (sessionError) throw sessionError;
 
       // Get all students in the course
       const { data: courseStudents, error: studentsError } = await supabase
-        .from("course_students")
-        .select("student_id")
-        .eq("course_id", sessionData.course_id)
+        .from('course_students')
+        .select('student_id')
+        .eq('course_id', sessionData.course_id);
 
-      if (studentsError) throw studentsError
+      if (studentsError) throw studentsError;
 
       // Get existing attendance records for this session
       const { data: existingAttendance, error: attendanceError } = await supabase
-        .from("attendance")
-        .select("*")
-        .eq("session_id", sessionId)
+        .from('attendance')
+        .select('*')
+        .eq('session_id', sessionId);
 
-      if (attendanceError) throw attendanceError
+      if (attendanceError) throw attendanceError;
 
       // Create a map of student IDs to their attendance status
-      const attendanceMap = new Map()
+      const attendanceMap = new Map();
       existingAttendance.forEach((record: any) => {
         attendanceMap.set(record.student_id, {
           id: record.id,
           status: record.status,
           created_at: record.created_at,
-        })
-      })
+        });
+      });
 
       // Get the session creation time
-      const sessionTime = new Date(sessionData.created_at!).getTime()
-      const currentTime = new Date().getTime()
+      const sessionTime = new Date(sessionData.created_at!).getTime();
+      const currentTime = new Date().getTime();
 
       // Calculate time thresholds (30 minutes and 2 hours in milliseconds)
-      const lateThreshold = 30 * 60 * 1000 // 30 minutes
-      const absentThreshold = 2 * 60 * 60 * 1000 // 2 hours
+      const lateThreshold = 30 * 60 * 1000; // 30 minutes
+      const absentThreshold = 2 * 60 * 60 * 1000; // 2 hours
 
       // Update attendance status for all students
       for (const { student_id } of courseStudents) {
         // If student already has an attendance record
         if (attendanceMap.has(student_id)) {
-          const record = attendanceMap.get(student_id)
-          const recordTime = new Date(record.created_at).getTime()
-          const timeDifference = recordTime - sessionTime
+          const record = attendanceMap.get(student_id);
+          const recordTime = new Date(record.created_at).getTime();
+          const timeDifference = recordTime - sessionTime;
 
           // Update status based on time difference
-          let newStatus = record.status
+          let newStatus = record.status;
           if (timeDifference > absentThreshold) {
-            newStatus = "absent"
+            newStatus = 'absent';
           } else if (timeDifference > lateThreshold) {
-            newStatus = "late"
+            newStatus = 'late';
           }
 
           // Update if status changed
           if (newStatus !== record.status) {
-            await supabase.from("attendance").update({ status: newStatus }).eq("id", record.id)
+            await supabase.from('attendance').update({ status: newStatus }).eq('id', record.id);
           }
         } else {
           // If student doesn't have an attendance record, mark as absent
           // Only create absent records if the session is older than the absent threshold
           if (currentTime - sessionTime > absentThreshold) {
-            await supabase.from("attendance").insert({
+            await supabase.from('attendance').insert({
               student_id,
               course_id: sessionData.course_id,
               date: sessionData.date,
-              status: "absent",
+              status: 'absent',
               session_id: sessionId,
-            })
+            });
           }
         }
       }
 
       // Refresh attendance data
-      refetchAttendance()
+      refetchAttendance();
 
       toast({
-        title: "تم تحديث حالة الحضور",
-        description: "تم تحديث حالة الحضور لجميع الطلاب بناءً على وقت التسجيل",
-      })
+        title: 'تم تحديث حالة الحضور',
+        description: 'تم تحديث حالة الحضور لجميع الطلاب بناءً على وقت التسجيل',
+      });
     } catch (error: any) {
-      console.error("Error updating attendance status:", error)
+      console.error('Error updating attendance status:', error);
       toast({
-        variant: "destructive",
-        title: "خطأ في تحديث حالة الحضور",
-        description: error.message || "حدث خطأ أثناء تحديث حالة الحضور",
-      })
+        variant: 'destructive',
+        title: 'خطأ في تحديث حالة الحضور',
+        description: error.message || 'حدث خطأ أثناء تحديث حالة الحضور',
+      });
     }
-  }
+  };
 
   // Function to manually mark a student as absent/present/late
   const updateStudentAttendance = async (attendanceId: string, newStatus: string) => {
     try {
-      const { error } = await supabase.from("attendance").update({ status: newStatus }).eq("id", attendanceId)
+      const { error } = await supabase
+        .from('attendance')
+        .update({ status: newStatus })
+        .eq('id', attendanceId);
 
-      if (error) throw error
+      if (error) throw error;
 
-      refetchAttendance()
+      refetchAttendance();
 
       toast({
-        title: "تم تحديث حالة الحضور",
-        description: "تم تحديث حالة حضور الطالب بنجاح",
-      })
+        title: 'تم تحديث حالة الحضور',
+        description: 'تم تحديث حالة حضور الطالب بنجاح',
+      });
     } catch (error: any) {
-      console.error("Error updating student attendance:", error)
+      console.error('Error updating student attendance:', error);
       toast({
-        variant: "destructive",
-        title: "خطأ في تحديث حالة الحضور",
-        description: error.message || "حدث خطأ أثناء تحديث حالة حضور الطالب",
-      })
+        variant: 'destructive',
+        title: 'خطأ في تحديث حالة الحضور',
+        description: error.message || 'حدث خطأ أثناء تحديث حالة حضور الطالب',
+      });
     }
-  }
+  };
 
   useEffect(() => {
     const fetchCourseStats = async () => {
-      const stats: Record<string, any> = {}
+      const stats: Record<string, any> = {};
       for (const course of courses) {
-        stats[course.id] = await calculateCourseStats(course.id)
+        stats[course.id] = await calculateCourseStats(course.id);
       }
-      setCourseStatsMap(stats)
-    }
+      setCourseStatsMap(stats);
+    };
 
     if (courses.length > 0) {
-      fetchCourseStats()
+      fetchCourseStats();
     }
-  }, [courses, attendanceRecords, students])
+  }, [courses, attendanceRecords, students]);
 
   useEffect(() => {
     const fetchStudentStats = async () => {
-      if (!selectedCourse) return
+      if (!selectedCourse) return;
 
-      const stats: Record<string, any> = {}
+      const stats: Record<string, any> = {};
       for (const student of students) {
-        stats[student.id] = await calculateStudentStats(student.id, selectedCourse)
+        stats[student.id] = await calculateStudentStats(student.id, selectedCourse);
       }
-      setStudentStatsMap(stats)
-    }
+      setStudentStatsMap(stats);
+    };
 
     if (students.length > 0 && selectedCourse) {
-      fetchStudentStats()
+      fetchStudentStats();
     }
-  }, [students, selectedCourse, attendanceRecords])
+  }, [students, selectedCourse, attendanceRecords]);
 
   if (isLoading || isLoadingCourses) {
     return (
@@ -498,7 +537,7 @@ export function DoctorDashboard() {
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
         </div>
       </DashboardShell>
-    )
+    );
   }
 
   return (
@@ -517,25 +556,25 @@ export function DoctorDashboard() {
               <SheetContent side="right" className="w-[240px] sm:w-[300px]">
                 <nav className="flex flex-col gap-4 mt-8">
                   <Button
-                    variant={activeTab === "dashboard" ? "default" : "ghost"}
+                    variant={activeTab === 'dashboard' ? 'default' : 'ghost'}
                     className="justify-start"
-                    onClick={() => setActiveTab("dashboard")}
+                    onClick={() => setActiveTab('dashboard')}
                   >
                     <BarChart3 className="ml-2 h-5 w-5" />
                     لوحة التحكم
                   </Button>
                   <Button
-                    variant={activeTab === "profile" ? "default" : "ghost"}
+                    variant={activeTab === 'profile' ? 'default' : 'ghost'}
                     className="justify-start"
-                    onClick={() => setActiveTab("profile")}
+                    onClick={() => setActiveTab('profile')}
                   >
                     <User className="ml-2 h-5 w-5" />
                     الملف الشخصي
                   </Button>
                   <Button
-                    variant={activeTab === "reports" ? "default" : "ghost"}
+                    variant={activeTab === 'reports' ? 'default' : 'ghost'}
                     className="justify-start"
-                    onClick={() => setActiveTab("reports")}
+                    onClick={() => setActiveTab('reports')}
                   >
                     <FileText className="ml-2 h-5 w-5" />
                     التقارير
@@ -546,7 +585,7 @@ export function DoctorDashboard() {
               </SheetContent>
             </Sheet>
             <div className="flex items-center gap-2 font-bold text-xl">
-              <Image src={LOGO || "/placeholder.svg"} alt="شعار" className="h-8 w-8" />
+              <Image src={LOGO || '/placeholder.svg'} alt="شعار" className="h-8 w-8" />
               <span className="hidden md:inline-block">نظام حضور معهد راية</span>
             </div>
           </div>
@@ -554,25 +593,25 @@ export function DoctorDashboard() {
             <ThemeToggle />
             <div className="hidden md:flex items-center gap-2">
               <Button
-                variant={activeTab === "dashboard" ? "default" : "ghost"}
+                variant={activeTab === 'dashboard' ? 'default' : 'ghost'}
                 size="sm"
-                onClick={() => setActiveTab("dashboard")}
+                onClick={() => setActiveTab('dashboard')}
               >
                 <BarChart3 className="ml-2 h-4 w-4" />
                 لوحة التحكم
               </Button>
               <Button
-                variant={activeTab === "profile" ? "default" : "ghost"}
+                variant={activeTab === 'profile' ? 'default' : 'ghost'}
                 size="sm"
-                onClick={() => setActiveTab("profile")}
+                onClick={() => setActiveTab('profile')}
               >
                 <User className="ml-2 h-4 w-4" />
                 الملف الشخصي
               </Button>
               <Button
-                variant={activeTab === "reports" ? "default" : "ghost"}
+                variant={activeTab === 'reports' ? 'default' : 'ghost'}
                 size="sm"
-                onClick={() => setActiveTab("reports")}
+                onClick={() => setActiveTab('reports')}
               >
                 <FileText className="ml-2 h-4 w-4" />
                 التقارير
@@ -591,11 +630,11 @@ export function DoctorDashboard() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setActiveTab("profile")}>
+                <DropdownMenuItem onClick={() => setActiveTab('profile')}>
                   <User className="ml-2 h-4 w-4" />
                   الملف الشخصي
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setActiveTab("reports")}>
+                <DropdownMenuItem onClick={() => setActiveTab('reports')}>
                   <FileText className="ml-2 h-4 w-4" />
                   التقارير
                 </DropdownMenuItem>
@@ -608,7 +647,7 @@ export function DoctorDashboard() {
 
       {/* Main content */}
       <main className="flex-1 container py-8">
-        {activeTab === "dashboard" && (
+        {activeTab === 'dashboard' && (
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
               <h1 className="text-2xl font-bold">لوحة تحكم المحاضر</h1>
@@ -649,21 +688,21 @@ export function DoctorDashboard() {
             ) : (
               <>
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {courses.map((course) => (
+                  {courses.map(course => (
                     <Card
                       key={course.id}
-                      className={`cursor-pointer transition-colors ${selectedCourse === course.id ? "border-primary" : ""}`}
+                      className={`cursor-pointer transition-colors ${selectedCourse === course.id ? 'border-primary' : ''}`}
                       onClick={() => handleCourseSelect(course.id)}
                     >
                       <CardHeader className="flex flex-row items-start justify-between">
                         <div>
                           <CardTitle>{course.name}</CardTitle>
                           <CardDescription className="my-5">
-                            تم الإنشاء في {new Date(course.created_at!).toLocaleDateString("ar-EG")}
+                            تم الإنشاء في {new Date(course.created_at!).toLocaleDateString('ar-EG')}
                           </CardDescription>
                         </div>
                         <DropdownMenu>
-                          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                          <DropdownMenuTrigger asChild onClick={e => e.stopPropagation()}>
                             <Button variant="ghost" size="icon">
                               <svg
                                 xmlns="http://www.w3.org/2000/svg"
@@ -686,11 +725,10 @@ export function DoctorDashboard() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem
-                              onClick={(e) => {
-
-                                setCourseToEdit(course)
-                                setNewCourseName(course.name)
-                                setIsEditCourseDialogOpen(true)
+                              onClick={e => {
+                                setCourseToEdit(course);
+                                setNewCourseName(course.name);
+                                setIsEditCourseDialogOpen(true);
                               }}
                             >
                               <svg
@@ -711,10 +749,10 @@ export function DoctorDashboard() {
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               className="text-destructive focus:text-destructive"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setCourseToDelete(course)
-                                setIsDeleteCourseDialogOpen(true)
+                              onClick={e => {
+                                e.stopPropagation();
+                                setCourseToDelete(course);
+                                setIsDeleteCourseDialogOpen(true);
                               }}
                             >
                               <Trash2 className="h-4 w-4 ml-2" />
@@ -723,18 +761,16 @@ export function DoctorDashboard() {
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </CardHeader>
-                      <CardContent className="sr-only">
-
-                      </CardContent>
+                      <CardContent className="sr-only"></CardContent>
                       <CardFooter>
                         <Button
                           variant="outline"
                           size="sm"
                           className="w-full"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setSelectedCourse(course.id)
-                            setIsCourseDetailsOpen(true)
+                          onClick={e => {
+                            e.stopPropagation();
+                            setSelectedCourse(course.id);
+                            setIsCourseDetailsOpen(true);
                           }}
                         >
                           عرض تفاصيل الدورة
@@ -771,15 +807,15 @@ export function DoctorDashboard() {
                             variant="outline"
                             onClick={async () => {
                               // Get the latest session for this course
-                              const sessions = await getCourseSessions(selectedCourse)
+                              const sessions = await getCourseSessions(selectedCourse);
                               if (sessions.length > 0) {
-                                updateAttendanceStatus(sessions[sessions.length - 1].id)
+                                updateAttendanceStatus(sessions[sessions.length - 1].id);
                               } else {
                                 toast({
-                                  variant: "destructive",
-                                  title: "لا توجد محاضرات",
-                                  description: "لا توجد محاضرات لتحديث حالة الحضور",
-                                })
+                                  variant: 'destructive',
+                                  title: 'لا توجد محاضرات',
+                                  description: 'لا توجد محاضرات لتحديث حالة الحضور',
+                                });
                               }
                             }}
                           >
@@ -801,7 +837,9 @@ export function DoctorDashboard() {
                         <CardHeader className="flex flex-row items-center justify-between">
                           <div>
                             <CardTitle>الطلاب المسجلين</CardTitle>
-                            <CardDescription className="my-4">قائمة الطلاب المسجلين في الدورة</CardDescription>
+                            <CardDescription className="my-4">
+                              قائمة الطلاب المسجلين في الدورة
+                            </CardDescription>
                           </div>
                           <div className="flex gap-2">
                             <Button onClick={() => setIsAddStudentOpen(true)}>
@@ -812,10 +850,13 @@ export function DoctorDashboard() {
                               <>
                                 <Button variant="outline" onClick={toggleMultiSelectMode}>
                                   <CheckSquare className="ml-2 h-4 w-4" />
-                                  {isMultiSelectMode ? "إلغاء التحديد" : "تحديد متعدد"}
+                                  {isMultiSelectMode ? 'إلغاء التحديد' : 'تحديد متعدد'}
                                 </Button>
                                 {isMultiSelectMode && selectedStudents.length > 0 && (
-                                  <Button variant="destructive" onClick={() => setIsDeleteStudentsDialogOpen(true)}>
+                                  <Button
+                                    variant="destructive"
+                                    onClick={() => setIsDeleteStudentsDialogOpen(true)}
+                                  >
                                     <Trash2 className="ml-2 h-4 w-4" />
                                     حذف المحدد ({selectedStudents.length})
                                   </Button>
@@ -836,7 +877,9 @@ export function DoctorDashboard() {
                         </CardHeader>
                         <CardContent>
                           {students.length === 0 ? (
-                            <p className="text-center py-4 text-muted-foreground">لا يوجد طلاب مسجلين في هذه الدورة</p>
+                            <p className="text-center py-4 text-muted-foreground">
+                              لا يوجد طلاب مسجلين في هذه الدورة
+                            </p>
                           ) : (
                             <div className="rounded-md border">
                               <div className="grid grid-cols-4 border-b bg-muted/50 p-2 font-medium">
@@ -848,9 +891,9 @@ export function DoctorDashboard() {
                                       className="mr-2 p-0 h-6 w-6"
                                       onClick={() => {
                                         if (selectedStudents.length === students.length) {
-                                          setSelectedStudents([])
+                                          setSelectedStudents([]);
                                         } else {
-                                          setSelectedStudents(students.map((s) => s.id))
+                                          setSelectedStudents(students.map(s => s.id));
                                         }
                                       }}
                                     >
@@ -868,7 +911,7 @@ export function DoctorDashboard() {
                                 <div>الإجراءات</div>
                               </div>
                               <div className="divide-y">
-                                {students.map((student) => (
+                                {students.map(student => (
                                   <div key={student.id} className="grid grid-cols-4 p-2">
                                     <div className="flex items-center">
                                       {isMultiSelectMode && (
@@ -896,8 +939,8 @@ export function DoctorDashboard() {
                                           size="sm"
                                           className="text-destructive hover:text-destructive hover:bg-destructive/10"
                                           onClick={() => {
-                                            setSelectedStudents([student.id])
-                                            setIsDeleteStudentsDialogOpen(true)
+                                            setSelectedStudents([student.id]);
+                                            setIsDeleteStudentsDialogOpen(true);
                                           }}
                                         >
                                           <Trash2 className="h-4 w-4" />
@@ -919,7 +962,7 @@ export function DoctorDashboard() {
                         userId={user.id}
                         onSessionCreated={() => {
                           // Refresh attendance data after creating a new session
-                          refetchAttendance()
+                          refetchAttendance();
                         }}
                       />
                     </TabsContent>
@@ -930,7 +973,7 @@ export function DoctorDashboard() {
           </div>
         )}
 
-        {activeTab === "profile" && (
+        {activeTab === 'profile' && (
           <>
             <DashboardHeader heading="الملف الشخصي" text="عرض وتعديل بياناتك الشخصية" />
             <ProfileSection
@@ -945,7 +988,7 @@ export function DoctorDashboard() {
           </>
         )}
 
-        {activeTab === "reports" && (
+        {activeTab === 'reports' && (
           <>
             <DashboardHeader heading="التقارير" text="تقارير الحضور والغياب" />
 
@@ -958,14 +1001,14 @@ export function DoctorDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {courses.map((course) => {
+                    {courses.map(course => {
                       const courseStats = courseStatsMap[course.id] || {
                         totalSessions: 0,
                         present: 0,
                         absent: 0,
                         late: 0,
                         presentPercentage: 0,
-                      }
+                      };
 
                       return (
                         <div key={course.id} className="space-y-2">
@@ -980,7 +1023,7 @@ export function DoctorDashboard() {
                             <div>تأخير: {courseStats.late}</div>
                           </div>
                         </div>
-                      )
+                      );
                     })}
                   </div>
                 </CardContent>
@@ -996,7 +1039,9 @@ export function DoctorDashboard() {
                   <div className="space-y-4">
                     {selectedCourse && (
                       <>
-                        <h4 className="font-medium">{courses.find((c) => c.id === selectedCourse)?.name}</h4>
+                        <h4 className="font-medium">
+                          {courses.find(c => c.id === selectedCourse)?.name}
+                        </h4>
                         <div className="rounded-md border">
                           <div className="grid grid-cols-3 border-b bg-muted/50 p-2 font-medium">
                             <div>الطالب</div>
@@ -1004,12 +1049,12 @@ export function DoctorDashboard() {
                             <div>الحالة</div>
                           </div>
                           <div className="divide-y">
-                            {students.map((student) => {
+                            {students.map(student => {
                               const stats = studentStatsMap[student.id] || {
                                 totalSessions: 0,
                                 present: 0,
                                 presentPercentage: 0,
-                              }
+                              };
 
                               return (
                                 <div key={student.id} className="grid grid-cols-3 p-2">
@@ -1020,21 +1065,21 @@ export function DoctorDashboard() {
                                       variant="outline"
                                       className={
                                         stats.presentPercentage >= 75
-                                          ? "bg-green-100 text-green-800 hover:bg-green-100"
+                                          ? 'bg-green-100 text-green-800 hover:bg-green-100'
                                           : stats.presentPercentage >= 50
-                                            ? "bg-yellow-100 text-yellow-800 hover:bg-yellow-100"
-                                            : "bg-red-100 text-red-800 hover:bg-red-100"
+                                            ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100'
+                                            : 'bg-red-100 text-red-800 hover:bg-red-100'
                                       }
                                     >
                                       {stats.presentPercentage >= 75
-                                        ? "جيد"
+                                        ? 'جيد'
                                         : stats.presentPercentage >= 50
-                                          ? "متوسط"
-                                          : "ضعيف"}
+                                          ? 'متوسط'
+                                          : 'ضعيف'}
                                     </Badge>
                                   </div>
                                 </div>
-                              )
+                              );
                             })}
                           </div>
                         </div>
@@ -1049,7 +1094,11 @@ export function DoctorDashboard() {
       </main>
 
       {/* Dialogs */}
-      <AddCourseDialog open={isAddCourseOpen} onOpenChange={setIsAddCourseOpen} onSuccess={handleCourseAdded} />
+      <AddCourseDialog
+        open={isAddCourseOpen}
+        onOpenChange={setIsAddCourseOpen}
+        onSuccess={handleCourseAdded}
+      />
 
       {selectedCourse && (
         <>
@@ -1064,7 +1113,7 @@ export function DoctorDashboard() {
           <CourseDetailsDialog
             open={isCourseDetailsOpen}
             onOpenChange={setIsCourseDetailsOpen}
-            course={courses.find((c) => c.id === selectedCourse)}
+            course={courses.find(c => c.id === selectedCourse)}
             students={students}
             attendanceStats={async () => await calculateCourseStats(selectedCourse)}
           />
@@ -1077,7 +1126,8 @@ export function DoctorDashboard() {
           <AlertDialogHeader>
             <AlertDialogTitle>حذف الطلاب المحددين</AlertDialogTitle>
             <AlertDialogDescription>
-              هل أنت متأكد من رغبتك في حذف {selectedStudents.length} طالب من هذه الدورة؟ لا يمكن التراجع عن هذا الإجراء.
+              هل أنت متأكد من رغبتك في حذف {selectedStudents.length} طالب من هذه الدورة؟ لا يمكن
+              التراجع عن هذا الإجراء.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex justify-end gap-2">
@@ -1087,19 +1137,23 @@ export function DoctorDashboard() {
               onClick={handleDeleteSelectedStudents}
               disabled={isStudentOperationLoading}
             >
-              {isStudentOperationLoading ? "جاري الحذف..." : "حذف"}
+              {isStudentOperationLoading ? 'جاري الحذف...' : 'حذف'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
       {/* Delete All Students Dialog */}
-      <AlertDialog open={isDeleteAllStudentsDialogOpen} onOpenChange={setIsDeleteAllStudentsDialogOpen}>
+      <AlertDialog
+        open={isDeleteAllStudentsDialogOpen}
+        onOpenChange={setIsDeleteAllStudentsDialogOpen}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>حذف جميع الطلاب</AlertDialogTitle>
             <AlertDialogDescription>
-              هل أنت متأكد من رغبتك في حذف جميع الطلاب من هذه الدورة؟ لا يمكن التراجع عن هذا الإجراء.
+              هل أنت متأكد من رغبتك في حذف جميع الطلاب من هذه الدورة؟ لا يمكن التراجع عن هذا
+              الإجراء.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex justify-end gap-2">
@@ -1109,7 +1163,7 @@ export function DoctorDashboard() {
               onClick={handleDeleteAllStudents}
               disabled={isStudentOperationLoading}
             >
-              {isStudentOperationLoading ? "جاري الحذف..." : "حذف الكل"}
+              {isStudentOperationLoading ? 'جاري الحذف...' : 'حذف الكل'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1129,7 +1183,7 @@ export function DoctorDashboard() {
                 id="name"
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 value={newCourseName}
-                onChange={(e) => setNewCourseName(e.target.value)}
+                onChange={e => setNewCourseName(e.target.value)}
                 placeholder="أدخل اسم الدورة الجديد"
               />
             </div>
@@ -1140,7 +1194,7 @@ export function DoctorDashboard() {
               onClick={handleEditCourseName}
               disabled={!newCourseName.trim() || isCourseOperationLoading}
             >
-              {isCourseOperationLoading ? "جاري الحفظ..." : "حفظ التغييرات"}
+              {isCourseOperationLoading ? 'جاري الحفظ...' : 'حفظ التغييرات'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1152,8 +1206,8 @@ export function DoctorDashboard() {
           <AlertDialogHeader>
             <AlertDialogTitle>حذف الدورة</AlertDialogTitle>
             <AlertDialogDescription>
-              هل أنت متأكد من رغبتك في حذف الدورة {courseToDelete?.name}؟ سيتم حذف جميع بيانات الدورة بما في ذلك سجلات
-              الحضور والطلاب المسجلين. لا يمكن التراجع عن هذا الإجراء.
+              هل أنت متأكد من رغبتك في حذف الدورة {courseToDelete?.name}؟ سيتم حذف جميع بيانات
+              الدورة بما في ذلك سجلات الحضور والطلاب المسجلين. لا يمكن التراجع عن هذا الإجراء.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex justify-end gap-2">
@@ -1163,20 +1217,23 @@ export function DoctorDashboard() {
               onClick={handleDeleteCourse}
               disabled={isCourseOperationLoading}
             >
-              {isCourseOperationLoading ? "جاري الحذف..." : "حذف الدورة"}
+              {isCourseOperationLoading ? 'جاري الحذف...' : 'حذف الدورة'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
       {/* Delete All Courses Dialog */}
-      <AlertDialog open={isDeleteAllCoursesDialogOpen} onOpenChange={setIsDeleteAllCoursesDialogOpen}>
+      <AlertDialog
+        open={isDeleteAllCoursesDialogOpen}
+        onOpenChange={setIsDeleteAllCoursesDialogOpen}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>حذف جميع الدورات</AlertDialogTitle>
             <AlertDialogDescription>
-              هل أنت متأكد من رغبتك في حذف جميع الدورات؟ سيتم حذف جميع البيانات المرتبطة بالدورات بما في ذلك سجلات
-              الحضور والطلاب المسجلين. لا يمكن التراجع عن هذا الإجراء.
+              هل أنت متأكد من رغبتك في حذف جميع الدورات؟ سيتم حذف جميع البيانات المرتبطة بالدورات
+              بما في ذلك سجلات الحضور والطلاب المسجلين. لا يمكن التراجع عن هذا الإجراء.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex justify-end gap-2">
@@ -1186,11 +1243,11 @@ export function DoctorDashboard() {
               onClick={handleDeleteAllCourses}
               disabled={isCourseOperationLoading}
             >
-              {isCourseOperationLoading ? "جاري الحذف..." : "حذف جميع الدورات"}
+              {isCourseOperationLoading ? 'جاري الحذف...' : 'حذف جميع الدورات'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </DashboardShell>
-  )
+  );
 }

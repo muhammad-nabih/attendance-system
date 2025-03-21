@@ -1,15 +1,14 @@
-import { redirect } from "next/navigation"
-import { SignupForm } from "@/components/signup-form"
-import { ArrowRight } from "lucide-react"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { ThemeToggle } from "@/components/theme-toggle"
+import { ArrowRight } from 'lucide-react';
+
+import Link from 'next/link';
+import { redirect } from 'next/navigation';
+
+import { SignupForm } from '@/components/signup-form';
+import { ThemeToggle } from '@/components/theme-toggle';
+import { Button } from '@/components/ui/button';
 
 export default async function SignupPage() {
   // التحقق من المصادقة على جانب الخادم
-
-
-
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -39,5 +38,5 @@ export default async function SignupPage() {
         </div>
       </footer>
     </div>
-  )
+  );
 }

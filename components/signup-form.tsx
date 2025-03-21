@@ -1,130 +1,148 @@
-"use client"
+'use client';
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import Link from "next/link"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
-import * as z from "zod"
-import { motion } from "framer-motion"
-import { createClient } from "@supabase/supabase-js"
-import { Loader2 } from "lucide-react"
+import { zodResolver } from '@hookform/resolvers/zod';
+import { createClient } from '@supabase/supabase-js';
+import { motion } from 'framer-motion';
+import { Loader2 } from 'lucide-react';
+import * as z from 'zod';
 
-import { Button } from "@/components/ui/button"
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useToast } from "@/components/ui/use-toast"
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+
+import { Button } from '@/components/ui/button';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { useToast } from '@/components/ui/use-toast';
 
 // إنشاء عميل Supabase
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_KEY!)
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_KEY!
+);
 
 const formSchema = z.object({
   name: z.string().min(2, {
-    message: "يجب أن يكون الاسم حرفين على الأقل",
+    message: 'يجب أن يكون الاسم حرفين على الأقل',
   }),
   email: z.string().email({
-    message: "يرجى إدخال بريد إلكتروني صحيح",
+    message: 'يرجى إدخال بريد إلكتروني صحيح',
   }),
   password: z.string().min(6, {
-    message: "يجب أن تكون كلمة المرور 6 أحرف على الأقل",
+    message: 'يجب أن تكون كلمة المرور 6 أحرف على الأقل',
   }),
-  role: z.enum(["student", "doctor"], {
-    required_error: "يرجى اختيار نوع المستخدم",
+  role: z.enum(['student', 'doctor'], {
+    required_error: 'يرجى اختيار نوع المستخدم',
   }),
-})
+});
 
 export function SignupForm() {
-  const router = useRouter()
-  const { toast } = useToast()
-  const [isLoading, setIsLoading] = useState(false)
+  const router = useRouter();
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: "",
-      email: "",
-      password: "",
-      role: "student",
+      name: '',
+      email: '',
+      password: '',
+      role: 'student',
     },
-  })
+  });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    setIsLoading(true)
+    setIsLoading(true);
 
     try {
       // التحقق من عدم وجود مستخدم بنفس البريد الإلكتروني
       const { data: existingUser, error: checkError } = await supabase
-        .from("users")
-        .select("email")
-        .eq("email", values.email)
+        .from('users')
+        .select('email')
+        .eq('email', values.email);
 
       if (checkError) {
-        console.error("Error checking existing user:", checkError)
-        throw new Error("خطأ في التحقق من وجود المستخدم")
+        console.error('Error checking existing user:', checkError);
+        throw new Error('خطأ في التحقق من وجود المستخدم');
       }
 
       if (existingUser && existingUser.length > 0) {
-        throw new Error("البريد الإلكتروني مستخدم بالفعل")
+        throw new Error('البريد الإلكتروني مستخدم بالفعل');
       }
 
       // إنشاء حساب في نظام المصادقة
       const { data, error } = await supabase.auth.signUp({
         email: values.email,
         password: values.password,
-      })
+      });
 
       if (error) {
-        console.error("Auth signup error:", error)
-        throw error
+        console.error('Auth signup error:', error);
+        throw error;
       }
 
       if (!data.user) {
-        throw new Error("فشل إنشاء المستخدم")
+        throw new Error('فشل إنشاء المستخدم');
       }
 
-      console.log("Auth user created successfully:", data.user.id)
+      console.log('Auth user created successfully:', data.user.id);
 
       // إضافة المستخدم إلى جدول المستخدمين
-      const { error: userError } = await supabase.from("users").insert([
+      const { error: userError } = await supabase.from('users').insert([
         {
           id: data.user.id,
           name: values.name,
           email: values.email,
-          password: "hashed_password", // في الواقع يجب تشفير كلمة المرور
+          password: 'hashed_password', // في الواقع يجب تشفير كلمة المرور
           role: values.role,
         },
-      ])
+      ]);
 
       if (userError) {
-        console.error("Error inserting user:", userError)
+        console.error('Error inserting user:', userError);
 
         // محاولة حذف المستخدم من نظام المصادقة إذا فشل إنشاء السجل في جدول المستخدمين
         try {
           // لا يمكن حذف المستخدم مباشرة، لكن يمكن تسجيل الخروج
-          await supabase.auth.signOut()
+          await supabase.auth.signOut();
         } catch (logoutError) {
-          console.error("Error during cleanup:", logoutError)
+          console.error('Error during cleanup:', logoutError);
         }
 
-        throw new Error("فشل إنشاء سجل المستخدم: " + userError.message)
+        throw new Error('فشل إنشاء سجل المستخدم: ' + userError.message);
       }
 
       toast({
-        title: "تم إنشاء الحساب بنجاح",
-        description: "يمكنك الآن تسجيل الدخول",
-      })
+        title: 'تم إنشاء الحساب بنجاح',
+        description: 'يمكنك الآن تسجيل الدخول',
+      });
 
-      router.push("/")
+      router.push('/');
     } catch (error: any) {
-      console.error("Signup error:", error)
+      console.error('Signup error:', error);
       toast({
-        variant: "destructive",
-        title: "خطأ في إنشاء الحساب",
-        description: error.message || "قد يكون البريد الإلكتروني مستخدم بالفعل",
-      })
+        variant: 'destructive',
+        title: 'خطأ في إنشاء الحساب',
+        description: error.message || 'قد يكون البريد الإلكتروني مستخدم بالفعل',
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
   }
 
@@ -201,12 +219,12 @@ export function SignupForm() {
                   جاري إنشاء الحساب...
                 </>
               ) : (
-                "إنشاء حساب"
+                'إنشاء حساب'
               )}
             </Button>
           </motion.div>
           <div className="text-center text-sm">
-            لديك حساب بالفعل؟{" "}
+            لديك حساب بالفعل؟{' '}
             <Link href="/" className="text-primary hover:underline">
               تسجيل الدخول
             </Link>
@@ -214,5 +232,5 @@ export function SignupForm() {
         </form>
       </Form>
     </div>
-  )
+  );
 }

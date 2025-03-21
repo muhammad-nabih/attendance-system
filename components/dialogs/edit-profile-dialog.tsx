@@ -1,10 +1,12 @@
-"use client"
+'use client';
 
-import { useState } from "react"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
-import * as z from "zod"
-import { Button } from "@/components/ui/button"
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -12,67 +14,75 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
-import { useToast } from "@/components/ui/use-toast"
-import { createClient } from "@/lib/supabase/client"
+} from '@/components/ui/dialog';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { useToast } from '@/components/ui/use-toast';
+
+import { createClient } from '@/lib/supabase/client';
 
 const formSchema = z.object({
   name: z.string().min(2, {
-    message: "الاسم يجب أن يحتوي على حرفين على الأقل",
+    message: 'الاسم يجب أن يحتوي على حرفين على الأقل',
   }),
   email: z.string().email({
-    message: "يرجى إدخال بريد إلكتروني صحيح",
+    message: 'يرجى إدخال بريد إلكتروني صحيح',
   }),
-})
+});
 
 interface EditProfileDialogProps {
-  user: any
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onSuccess?: () => void
+  user: any;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSuccess?: () => void;
 }
 
 export function EditProfileDialog({ user, open, onOpenChange, onSuccess }: EditProfileDialogProps) {
-  const { toast } = useToast()
-  const [isLoading, setIsLoading] = useState(false)
-  const supabase = createClient()
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
+  const supabase = createClient();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: user?.name || "",
-      email: user?.email || "",
+      name: user?.name || '',
+      email: user?.email || '',
     },
-  })
+  });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    setIsLoading(true)
+    setIsLoading(true);
     try {
       const { error } = await supabase
-        .from("users")
+        .from('users')
         .update({
           name: values.name,
           email: values.email,
         })
-        .eq("id", user.id)
+        .eq('id', user.id);
 
-      if (error) throw error
+      if (error) throw error;
 
       toast({
-        title: "تم تحديث المعلومات الشخصية بنجاح",
-      })
-      onSuccess?.()
-      onOpenChange(false)
+        title: 'تم تحديث المعلومات الشخصية بنجاح',
+      });
+      onSuccess?.();
+      onOpenChange(false);
     } catch (error: any) {
       toast({
-        variant: "destructive",
-        title: "خطأ في تحديث المعلومات",
+        variant: 'destructive',
+        title: 'خطأ في تحديث المعلومات',
         description: error.message,
-      })
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
   }
 
@@ -113,12 +123,12 @@ export function EditProfileDialog({ user, open, onOpenChange, onSuccess }: EditP
             />
             <DialogFooter>
               <Button type="submit" disabled={isLoading}>
-                {isLoading ? "جاري الحفظ..." : "حفظ التغييرات"}
+                {isLoading ? 'جاري الحفظ...' : 'حفظ التغييرات'}
               </Button>
             </DialogFooter>
           </form>
         </Form>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

@@ -1,20 +1,21 @@
-"use client"
+'use client';
 
-import type { ReactNode } from "react"
-import rtlPlugin from "stylis-plugin-rtl"
-import { prefixer } from "stylis"
-import { CacheProvider } from "@emotion/react"
-import createEmotionCache from "@emotion/cache"
+import createEmotionCache from '@emotion/cache';
+import { CacheProvider } from '@emotion/react';
+import { prefixer } from 'stylis';
+import rtlPlugin from 'stylis-plugin-rtl';
+
+import type { ReactNode } from 'react';
 
 interface RTLProviderProps {
-  children: ReactNode
+  children: ReactNode;
 }
 
 export function RTLProvider({ children }: RTLProviderProps) {
   const cache = createEmotionCache({
-    key: "rtl",
+    key: 'rtl',
     stylisPlugins: [prefixer, rtlPlugin],
-  })
+  });
 
-  return <CacheProvider value={cache}>{children}</CacheProvider>
+  return <CacheProvider value={cache}>{children}</CacheProvider>;
 }

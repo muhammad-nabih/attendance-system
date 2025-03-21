@@ -1,18 +1,25 @@
-"use client"
+'use client';
 
-import { format } from "date-fns"
-import { ar } from "date-fns/locale"
-import { BarChart3, Users, Calendar } from "lucide-react"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Progress } from "@/components/ui/progress"
+import { format } from 'date-fns';
+import { ar } from 'date-fns/locale';
+import { BarChart3, Calendar, Users } from 'lucide-react';
+
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Progress } from '@/components/ui/progress';
 
 interface CourseDetailsDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  course: any
-  students: any[]
-  attendanceStats: any
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  course: any;
+  students: any[];
+  attendanceStats: any;
 }
 
 export function CourseDetailsDialog({
@@ -22,15 +29,13 @@ export function CourseDetailsDialog({
   students,
   attendanceStats,
 }: CourseDetailsDialogProps) {
-    console.log(course)
+  console.log(course);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle>{course.name}</DialogTitle>
-          <DialogDescription className="hidden">
-         {course.name}
-          </DialogDescription>
+          <DialogDescription className="hidden">{course.name}</DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4 py-4">
@@ -101,9 +106,9 @@ export function CourseDetailsDialog({
                   <div>معرف الطالب</div>
                 </div>
                 <div className="divide-y">
-                  {students.map((student) => (
+                  {students.map(student => (
                     <div key={student.id} className="grid grid-cols-3 p-2">
-                      <div >{student.name}</div>
+                      <div>{student.name}</div>
                       <div className="text-muted-foreground text-xs">{student.email}</div>
                       <div className="font-mono text-xs">{student.id}</div>
                     </div>
@@ -115,5 +120,5 @@ export function CourseDetailsDialog({
         </div>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

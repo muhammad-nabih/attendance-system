@@ -1,34 +1,44 @@
-"use client"
+'use client';
 
-import { useState } from "react"
-import { format, parseISO, isToday, isYesterday, isSameWeek } from "date-fns"
-import { ar } from "date-fns/locale"
+import LOGO from '@/public/LOGO.png';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { format, isSameWeek, isToday, isYesterday, parseISO } from 'date-fns';
+import { ar } from 'date-fns/locale';
 import {
-  Calendar,
+  AlertCircle,
+  BarChart3,
   BookOpen,
-  User,
+  Calendar,
+  CheckCircle,
+  FileText,
   Menu,
   QrCode,
-  BarChart3,
-  FileText,
-  CheckCircle,
+  User,
   XCircle,
-  AlertCircle,
-} from "lucide-react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { useToast } from "@/components/ui/use-toast"
-import { DashboardHeader } from "@/components/dashboard-header"
-import { LogoutButton } from "@/components/logout-button"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { ThemeToggle } from "@/components/theme-toggle"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
-import { Separator } from "@/components/ui/separator"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+} from 'lucide-react';
+
+import { useState } from 'react';
+
+import Image from 'next/image';
+import { useRouter } from 'next/navigation';
+
+import { DashboardHeader } from '@/components/dashboard-header';
+import { CourseDetailsDialog } from '@/components/dialogs/course-details-dialog';
+import { LogoutButton } from '@/components/logout-button';
+import { ProfileSection } from '@/components/profile-section';
+import { QRCodeScanner } from '@/components/qr-code-scanner';
+import { ThemeToggle } from '@/components/theme-toggle';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
@@ -36,135 +46,142 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
-import { QRCodeScanner } from "@/components/qr-code-scanner"
-import { ProfileSection } from "@/components/profile-section"
-import { CourseDetailsDialog } from "@/components/dialogs/course-details-dialog"
-import { createClient } from "@/lib/supabase/client"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { useStudentCourses, useStudentAttendance } from "@/hooks/use-realtime-queries"
-import LOGO from "@/public/LOGO.png"
-import Image from "next/image"
+} from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Progress } from '@/components/ui/progress';
+import { Separator } from '@/components/ui/separator';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useToast } from '@/components/ui/use-toast';
+
+import { createClient } from '@/lib/supabase/client';
+
+import { useStudentAttendance, useStudentCourses } from '@/hooks/use-realtime-queries';
 
 export function StudentDashboard() {
-  const router = useRouter()
-  const { toast } = useToast()
-  const supabase = createClient()
-  const [activeTab, setActiveTab] = useState("dashboard")
-  const [courseDetailsOpen, setCourseDetailsOpen] = useState(false)
-  const [selectedCourseForDetails, setSelectedCourseForDetails] = useState<string | null>(null)
-  const queryClient = useQueryClient()
+  const router = useRouter();
+  const { toast } = useToast();
+  const supabase = createClient();
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [courseDetailsOpen, setCourseDetailsOpen] = useState(false);
+  const [selectedCourseForDetails, setSelectedCourseForDetails] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   // Consulta para obtener los datos del usuario
   const { data: user, isLoading: isLoadingUser } = useQuery({
-    queryKey: ["current-user"],
+    queryKey: ['current-user'],
     queryFn: async () => {
       const {
         data: { user: authUser },
         error: authError,
-      } = await supabase.auth.getUser()
-      if (authError) throw authError
+      } = await supabase.auth.getUser();
+      if (authError) throw authError;
 
       if (!authUser) {
-        router.push("/login")
-        return null
+        router.push('/login');
+        return null;
       }
 
       const { data: userData, error: userError } = await supabase
-        .from("users")
-        .select("*")
-        .eq("id", authUser.id)
-        .single()
+        .from('users')
+        .select('*')
+        .eq('id', authUser.id)
+        .single();
 
-      if (userError) throw userError
+      if (userError) throw userError;
 
-      if (userData.role !== "student") {
-        router.push("/")
-        return null
+      if (userData.role !== 'student') {
+        router.push('/');
+        return null;
       }
 
-      return userData
+      return userData;
     },
-  })
+  });
 
   // Usar los hooks de React Query para cursos y asistencia
-  const { courses } = useStudentCourses(user?.id)
-  const { attendanceRecords } = useStudentAttendance(user?.id)
+  const { courses } = useStudentCourses(user?.id);
+  const { attendanceRecords } = useStudentAttendance(user?.id);
 
   // Categorizar los registros de asistencia por tiempo
   const categorizeAttendance = () => {
-    if (!attendanceRecords) return { today: [], yesterday: [], thisWeek: [], older: [] }
+    if (!attendanceRecords) return { today: [], yesterday: [], thisWeek: [], older: [] };
 
-    const today = []
-    const yesterday = []
-    const thisWeek = []
-    const older = []
+    const today = [];
+    const yesterday = [];
+    const thisWeek = [];
+    const older = [];
 
     for (const record of attendanceRecords) {
-      const date = parseISO(record.date)
+      const date = parseISO(record.date);
       if (isToday(date)) {
-        today.push(record)
+        today.push(record);
       } else if (isYesterday(date)) {
-        yesterday.push(record)
+        yesterday.push(record);
       } else if (isSameWeek(date, new Date(), { locale: ar })) {
-        thisWeek.push(record)
+        thisWeek.push(record);
       } else {
-        older.push(record)
+        older.push(record);
       }
     }
 
-    return { today, yesterday, thisWeek, older }
-  }
+    return { today, yesterday, thisWeek, older };
+  };
 
   // Calcular estadísticas de asistencia
   const calculateStats = () => {
     if (!attendanceRecords || attendanceRecords.length === 0)
-      return { present: 0, absent: 0, late: 0, total: 0, presentPercentage: 0 }
+      return { present: 0, absent: 0, late: 0, total: 0, presentPercentage: 0 };
 
-    const present = attendanceRecords.filter((record) => record.status === "present").length
-    const absent = attendanceRecords.filter((record) => record.status === "absent").length
-    const late = attendanceRecords.filter((record) => record.status === "late").length
-    const total = attendanceRecords.length
-    const presentPercentage = total > 0 ? Math.round((present / total) * 100) : 0
+    const present = attendanceRecords.filter(record => record.status === 'present').length;
+    const absent = attendanceRecords.filter(record => record.status === 'absent').length;
+    const late = attendanceRecords.filter(record => record.status === 'late').length;
+    const total = attendanceRecords.length;
+    const presentPercentage = total > 0 ? Math.round((present / total) * 100) : 0;
 
-    return { present, absent, late, total, presentPercentage }
-  }
+    return { present, absent, late, total, presentPercentage };
+  };
 
   // Calcular estadísticas por curso
   const calculateCourseStats = (courseId: string) => {
-    const courseRecords = attendanceRecords.filter((record) => record.course_id === courseId)
-    const present = courseRecords.filter((record) => record.status === "present").length
-    const absent = courseRecords.filter((record) => record.status === "absent").length
-    const late = courseRecords.filter((record) => record.status === "late").length
-    const total = courseRecords.length
-    const presentPercentage = total > 0 ? Math.round((present / total) * 100) : 0
+    const courseRecords = attendanceRecords.filter(record => record.course_id === courseId);
+    const present = courseRecords.filter(record => record.status === 'present').length;
+    const absent = courseRecords.filter(record => record.status === 'absent').length;
+    const late = courseRecords.filter(record => record.status === 'late').length;
+    const total = courseRecords.length;
+    const presentPercentage = total > 0 ? Math.round((present / total) * 100) : 0;
 
-    return { present, absent, late, total, presentPercentage }
-  }
+    return { present, absent, late, total, presentPercentage };
+  };
 
   // Función para actualizar los datos del usuario
   const refreshUserData = async () => {
-    queryClient.invalidateQueries({ queryKey: ["current-user"] })
-  }
+    queryClient.invalidateQueries({ queryKey: ['current-user'] });
+  };
 
   // Obtener iniciales del nombre
   const getInitials = (name: string) => {
-    return name ? name.charAt(0).toUpperCase() : "U"
-  }
+    return name ? name.charAt(0).toUpperCase() : 'U';
+  };
 
-  const stats = calculateStats()
-  const categorized = categorizeAttendance()
+  const stats = calculateStats();
+  const categorized = categorizeAttendance();
 
   if (isLoadingUser) {
     return (
       <div className="flex justify-center items-center h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
-    )
+    );
   }
 
   if (!user) {
-    return null
+    return null;
   }
 
   return (
@@ -183,41 +200,41 @@ export function StudentDashboard() {
               <SheetContent side="right" className="w-[240px] sm:w-[300px]">
                 <nav className="flex flex-col gap-4 mt-8">
                   <Button
-                    variant={activeTab === "dashboard" ? "default" : "ghost"}
+                    variant={activeTab === 'dashboard' ? 'default' : 'ghost'}
                     className="justify-start"
-                    onClick={() => setActiveTab("dashboard")}
+                    onClick={() => setActiveTab('dashboard')}
                   >
                     <User className="ml-2 h-5 w-5" />
                     لوحة التحكم
                   </Button>
                   <Button
-                    variant={activeTab === "courses" ? "default" : "ghost"}
+                    variant={activeTab === 'courses' ? 'default' : 'ghost'}
                     className="justify-start"
-                    onClick={() => setActiveTab("courses")}
+                    onClick={() => setActiveTab('courses')}
                   >
                     <BookOpen className="ml-2 h-5 w-5" />
                     الدورات
                   </Button>
                   <Button
-                    variant={activeTab === "attendance" ? "default" : "ghost"}
+                    variant={activeTab === 'attendance' ? 'default' : 'ghost'}
                     className="justify-start"
-                    onClick={() => setActiveTab("attendance")}
+                    onClick={() => setActiveTab('attendance')}
                   >
                     <Calendar className="ml-2 h-5 w-5" />
                     سجل الحضور
                   </Button>
                   <Button
-                    variant={activeTab === "qr-scanner" ? "default" : "ghost"}
+                    variant={activeTab === 'qr-scanner' ? 'default' : 'ghost'}
                     className="justify-start"
-                    onClick={() => setActiveTab("qr-scanner")}
+                    onClick={() => setActiveTab('qr-scanner')}
                   >
                     <QrCode className="ml-2 h-5 w-5" />
                     تسجيل الحضور
                   </Button>
                   <Button
-                    variant={activeTab === "reports" ? "default" : "ghost"}
+                    variant={activeTab === 'reports' ? 'default' : 'ghost'}
                     className="justify-start"
-                    onClick={() => setActiveTab("reports")}
+                    onClick={() => setActiveTab('reports')}
                   >
                     <FileText className="ml-2 h-5 w-5" />
                     التقارير
@@ -228,41 +245,41 @@ export function StudentDashboard() {
               </SheetContent>
             </Sheet>
             <div className="flex items-center gap-2 font-bold lg:text-lg xl:text-xl md:text-sm">
-            <Image src={LOGO}   alt="شعار" className="h-8 w-8" />
-            <span className="hidden md:inline-block ">نظام حضور معهد راية</span>
+              <Image src={LOGO} alt="شعار" className="h-8 w-8" />
+              <span className="hidden md:inline-block ">نظام حضور معهد راية</span>
             </div>
           </div>
           <div className="flex items-center gap-4">
             <ThemeToggle />
             <div className="hidden md:flex items-center gap-2">
               <Button
-                variant={activeTab === "dashboard" ? "default" : "ghost"}
+                variant={activeTab === 'dashboard' ? 'default' : 'ghost'}
                 size="sm"
-                onClick={() => setActiveTab("dashboard")}
+                onClick={() => setActiveTab('dashboard')}
               >
                 <User className="ml-2 h-4 w-4" />
                 لوحة التحكم
               </Button>
               <Button
-                variant={activeTab === "courses" ? "default" : "ghost"}
+                variant={activeTab === 'courses' ? 'default' : 'ghost'}
                 size="sm"
-                onClick={() => setActiveTab("courses")}
+                onClick={() => setActiveTab('courses')}
               >
                 <BookOpen className="ml-2 h-4 w-4" />
                 الدورات
               </Button>
               <Button
-                variant={activeTab === "attendance" ? "default" : "ghost"}
+                variant={activeTab === 'attendance' ? 'default' : 'ghost'}
                 size="sm"
-                onClick={() => setActiveTab("attendance")}
+                onClick={() => setActiveTab('attendance')}
               >
                 <Calendar className="ml-2 h-4 w-4" />
                 سجل الحضور
               </Button>
               <Button
-                variant={activeTab === "qr-scanner" ? "default" : "ghost"}
+                variant={activeTab === 'qr-scanner' ? 'default' : 'ghost'}
                 size="sm"
-                onClick={() => setActiveTab("qr-scanner")}
+                onClick={() => setActiveTab('qr-scanner')}
               >
                 <QrCode className="ml-2 h-4 w-4" />
                 تسجيل الحضور
@@ -272,17 +289,20 @@ export function StudentDashboard() {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="rounded-full">
                   <Avatar>
-                    <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${user.name}`} alt={user.name} />
+                    <AvatarImage
+                      src={`https://api.dicebear.com/7.x/initials/svg?seed=${user.name}`}
+                      alt={user.name}
+                    />
                     <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setActiveTab("profile")}>
+                <DropdownMenuItem onClick={() => setActiveTab('profile')}>
                   <User className="ml-2 h-4 w-4" />
                   الملف الشخصي
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setActiveTab("reports")}>
+                <DropdownMenuItem onClick={() => setActiveTab('reports')}>
                   <FileText className="ml-2 h-4 w-4" />
                   التقارير
                 </DropdownMenuItem>
@@ -295,7 +315,7 @@ export function StudentDashboard() {
 
       {/* Main content */}
       <main className="flex-1 container py-8">
-        {activeTab === "dashboard" && (
+        {activeTab === 'dashboard' && (
           <>
             <DashboardHeader heading={`مرحباً، ${user.name}`} text="إليك ملخص حضورك">
               <Dialog>
@@ -324,7 +344,9 @@ export function StudentDashboard() {
                 <CardContent>
                   <div className="text-2xl font-bold">{stats.presentPercentage}%</div>
                   <Progress value={stats.presentPercentage} className="mt-2" />
-                  <p className="text-xs text-muted-foreground mt-2">من إجمالي {stats.total} محاضرة</p>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    من إجمالي {stats.total} محاضرة
+                  </p>
                 </CardContent>
               </Card>
               <Card className="hover-card">
@@ -377,23 +399,31 @@ export function StudentDashboard() {
                           </tr>
                         </thead>
                         <tbody>
-                          {attendanceRecords.slice(0, 5).map((record) => (
+                          {attendanceRecords.slice(0, 5).map(record => (
                             <tr key={record.id} className="border-b">
-                              <td className="p-2">{format(parseISO(record.date), "yyyy/MM/dd", { locale: ar })}</td>
                               <td className="p-2">
-                                {courses.find((c) => c.id === record.course_id)?.name || "غير معروف"}
+                                {format(parseISO(record.date), 'yyyy/MM/dd', {
+                                  locale: ar,
+                                })}
+                              </td>
+                              <td className="p-2">
+                                {courses.find(c => c.id === record.course_id)?.name || 'غير معروف'}
                               </td>
                               <td className="p-2">
                                 <Badge
                                   className={`${
-                                    record.status === "present"
-                                      ? "bg-green-100 text-green-800 hover:bg-green-100"
-                                      : record.status === "absent"
-                                        ? "bg-red-100 text-red-800 hover:bg-red-100"
-                                        : "bg-yellow-100 text-yellow-800 hover:bg-yellow-100"
+                                    record.status === 'present'
+                                      ? 'bg-green-100 text-green-800 hover:bg-green-100'
+                                      : record.status === 'absent'
+                                        ? 'bg-red-100 text-red-800 hover:bg-red-100'
+                                        : 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100'
                                   }`}
                                 >
-                                  {record.status === "present" ? "حاضر" : record.status === "absent" ? "غائب" : "متأخر"}
+                                  {record.status === 'present'
+                                    ? 'حاضر'
+                                    : record.status === 'absent'
+                                      ? 'غائب'
+                                      : 'متأخر'}
                                 </Badge>
                               </td>
                             </tr>
@@ -406,7 +436,7 @@ export function StudentDashboard() {
                   )}
                 </CardContent>
                 <CardFooter>
-                  <Button variant="outline" size="sm" onClick={() => setActiveTab("attendance")}>
+                  <Button variant="outline" size="sm" onClick={() => setActiveTab('attendance')}>
                     عرض جميع السجلات
                   </Button>
                 </CardFooter>
@@ -419,22 +449,26 @@ export function StudentDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {courses.slice(0, 3).map((course) => (
+                    {courses.slice(0, 3).map(course => (
                       <div key={course.id} className="flex items-center justify-between">
                         <div>
                           <p className="font-medium">{course.name}</p>
                           <p className="text-sm text-muted-foreground">د. {course.doctorName}</p>
                         </div>
-                        <Badge variant="outline">{calculateCourseStats(course.id).presentPercentage}%</Badge>
+                        <Badge variant="outline">
+                          {calculateCourseStats(course.id).presentPercentage}%
+                        </Badge>
                       </div>
                     ))}
                     {courses.length > 3 && (
-                      <p className="text-sm text-muted-foreground text-center">+{courses.length - 3} دورات أخرى</p>
+                      <p className="text-sm text-muted-foreground text-center">
+                        +{courses.length - 3} دورات أخرى
+                      </p>
                     )}
                   </div>
                 </CardContent>
                 <CardFooter>
-                  <Button variant="outline" size="sm" onClick={() => setActiveTab("courses")}>
+                  <Button variant="outline" size="sm" onClick={() => setActiveTab('courses')}>
                     عرض جميع الدورات
                   </Button>
                 </CardFooter>
@@ -443,14 +477,14 @@ export function StudentDashboard() {
           </>
         )}
 
-        {activeTab === "courses" && (
+        {activeTab === 'courses' && (
           <>
             <DashboardHeader heading="الدورات المسجلة" text="قائمة الدورات التي أنت مسجل فيها" />
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mt-6">
               {courses.length > 0 ? (
-                courses.map((course) => {
-                  const courseStats = calculateCourseStats(course.id)
+                courses.map(course => {
+                  const courseStats = calculateCourseStats(course.id);
                   return (
                     <Card key={course.id} className="overflow-hidden hover-card">
                       <div className="h-32 bg-gradient-to-r from-primary/20 to-primary/10 flex items-center justify-center">
@@ -465,7 +499,9 @@ export function StudentDashboard() {
                           <div>
                             <div className="flex justify-between mb-1">
                               <span className="text-sm font-medium">نسبة الحضور</span>
-                              <span className="text-sm font-medium">{courseStats.presentPercentage}%</span>
+                              <span className="text-sm font-medium">
+                                {courseStats.presentPercentage}%
+                              </span>
                             </div>
                             <Progress value={courseStats.presentPercentage} />
                           </div>
@@ -491,15 +527,15 @@ export function StudentDashboard() {
                           size="sm"
                           className="w-full"
                           onClick={() => {
-                            setCourseDetailsOpen(true)
-                            setSelectedCourseForDetails(course.id)
+                            setCourseDetailsOpen(true);
+                            setSelectedCourseForDetails(course.id);
                           }}
                         >
                           عرض تفاصيل الدورة
                         </Button>
                       </CardFooter>
                     </Card>
-                  )
+                  );
                 })
               ) : (
                 <div className="col-span-full flex justify-center p-8 bg-muted/50 rounded-lg">
@@ -510,7 +546,7 @@ export function StudentDashboard() {
           </>
         )}
 
-        {activeTab === "attendance" && (
+        {activeTab === 'attendance' && (
           <>
             <DashboardHeader heading="سجل الحضور" text="عرض سجل الحضور والغياب الخاص بك" />
 
@@ -540,28 +576,37 @@ export function StudentDashboard() {
                             </tr>
                           </thead>
                           <tbody>
-                            {attendanceRecords.map((record) => (
+                            {attendanceRecords.map(record => (
                               <tr key={record.id} className="border-b">
-                                <td className="p-2">{format(parseISO(record.date), "yyyy/MM/dd", { locale: ar })}</td>
-                                <td className="p-2">{format(parseISO(record.date), "EEEE", { locale: ar })}</td>
                                 <td className="p-2">
-                                  {courses.find((c) => c.id === record.course_id)?.name || "غير معروف"}
+                                  {format(parseISO(record.date), 'yyyy/MM/dd', {
+                                    locale: ar,
+                                  })}
+                                </td>
+                                <td className="p-2">
+                                  {format(parseISO(record.date), 'EEEE', {
+                                    locale: ar,
+                                  })}
+                                </td>
+                                <td className="p-2">
+                                  {courses.find(c => c.id === record.course_id)?.name ||
+                                    'غير معروف'}
                                 </td>
                                 <td className="p-2">
                                   <Badge
                                     className={`${
-                                      record.status === "present"
-                                        ? "bg-green-100 text-green-800 hover:bg-green-100"
-                                        : record.status === "absent"
-                                          ? "bg-red-100 text-red-800 hover:bg-red-100"
-                                          : "bg-yellow-100 text-yellow-800 hover:bg-yellow-100"
+                                      record.status === 'present'
+                                        ? 'bg-green-100 text-green-800 hover:bg-green-100'
+                                        : record.status === 'absent'
+                                          ? 'bg-red-100 text-red-800 hover:bg-red-100'
+                                          : 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100'
                                     }`}
                                   >
-                                    {record.status === "present"
-                                      ? "حاضر"
-                                      : record.status === "absent"
-                                        ? "غائب"
-                                        : "متأخر"}
+                                    {record.status === 'present'
+                                      ? 'حاضر'
+                                      : record.status === 'absent'
+                                        ? 'غائب'
+                                        : 'متأخر'}
                                   </Badge>
                                 </td>
                               </tr>
@@ -586,28 +631,37 @@ export function StudentDashboard() {
                             </tr>
                           </thead>
                           <tbody>
-                            {categorized.today.map((record) => (
+                            {categorized.today.map(record => (
                               <tr key={record.id} className="border-b">
-                                <td className="p-2">{format(parseISO(record.date), "yyyy/MM/dd", { locale: ar })}</td>
-                                <td className="p-2">{format(parseISO(record.date), "EEEE", { locale: ar })}</td>
                                 <td className="p-2">
-                                  {courses.find((c) => c.id === record.course_id)?.name || "غير معروف"}
+                                  {format(parseISO(record.date), 'yyyy/MM/dd', {
+                                    locale: ar,
+                                  })}
+                                </td>
+                                <td className="p-2">
+                                  {format(parseISO(record.date), 'EEEE', {
+                                    locale: ar,
+                                  })}
+                                </td>
+                                <td className="p-2">
+                                  {courses.find(c => c.id === record.course_id)?.name ||
+                                    'غير معروف'}
                                 </td>
                                 <td className="p-2">
                                   <Badge
                                     className={`${
-                                      record.status === "present"
-                                        ? "bg-green-100 text-green-800 hover:bg-green-100"
-                                        : record.status === "absent"
-                                          ? "bg-red-100 text-red-800 hover:bg-red-100"
-                                          : "bg-yellow-100 text-yellow-800 hover:bg-yellow-100"
+                                      record.status === 'present'
+                                        ? 'bg-green-100 text-green-800 hover:bg-green-100'
+                                        : record.status === 'absent'
+                                          ? 'bg-red-100 text-red-800 hover:bg-red-100'
+                                          : 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100'
                                     }`}
                                   >
-                                    {record.status === "present"
-                                      ? "حاضر"
-                                      : record.status === "absent"
-                                        ? "غائب"
-                                        : "متأخر"}
+                                    {record.status === 'present'
+                                      ? 'حاضر'
+                                      : record.status === 'absent'
+                                        ? 'غائب'
+                                        : 'متأخر'}
                                   </Badge>
                                 </td>
                               </tr>
@@ -632,28 +686,37 @@ export function StudentDashboard() {
                             </tr>
                           </thead>
                           <tbody>
-                            {categorized.yesterday.map((record) => (
+                            {categorized.yesterday.map(record => (
                               <tr key={record.id} className="border-b">
-                                <td className="p-2">{format(parseISO(record.date), "yyyy/MM/dd", { locale: ar })}</td>
-                                <td className="p-2">{format(parseISO(record.date), "EEEE", { locale: ar })}</td>
                                 <td className="p-2">
-                                  {courses.find((c) => c.id === record.course_id)?.name || "غير معروف"}
+                                  {format(parseISO(record.date), 'yyyy/MM/dd', {
+                                    locale: ar,
+                                  })}
+                                </td>
+                                <td className="p-2">
+                                  {format(parseISO(record.date), 'EEEE', {
+                                    locale: ar,
+                                  })}
+                                </td>
+                                <td className="p-2">
+                                  {courses.find(c => c.id === record.course_id)?.name ||
+                                    'غير معروف'}
                                 </td>
                                 <td className="p-2">
                                   <Badge
                                     className={`${
-                                      record.status === "present"
-                                        ? "bg-green-100 text-green-800 hover:bg-green-100"
-                                        : record.status === "absent"
-                                          ? "bg-red-100 text-red-800 hover:bg-red-100"
-                                          : "bg-yellow-100 text-yellow-800 hover:bg-yellow-100"
+                                      record.status === 'present'
+                                        ? 'bg-green-100 text-green-800 hover:bg-green-100'
+                                        : record.status === 'absent'
+                                          ? 'bg-red-100 text-red-800 hover:bg-red-100'
+                                          : 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100'
                                     }`}
                                   >
-                                    {record.status === "present"
-                                      ? "حاضر"
-                                      : record.status === "absent"
-                                        ? "غائب"
-                                        : "متأخر"}
+                                    {record.status === 'present'
+                                      ? 'حاضر'
+                                      : record.status === 'absent'
+                                        ? 'غائب'
+                                        : 'متأخر'}
                                   </Badge>
                                 </td>
                               </tr>
@@ -678,28 +741,37 @@ export function StudentDashboard() {
                             </tr>
                           </thead>
                           <tbody>
-                            {categorized.thisWeek.map((record) => (
+                            {categorized.thisWeek.map(record => (
                               <tr key={record.id} className="border-b">
-                                <td className="p-2">{format(parseISO(record.date), "yyyy/MM/dd", { locale: ar })}</td>
-                                <td className="p-2">{format(parseISO(record.date), "EEEE", { locale: ar })}</td>
                                 <td className="p-2">
-                                  {courses.find((c) => c.id === record.course_id)?.name || "غير معروف"}
+                                  {format(parseISO(record.date), 'yyyy/MM/dd', {
+                                    locale: ar,
+                                  })}
+                                </td>
+                                <td className="p-2">
+                                  {format(parseISO(record.date), 'EEEE', {
+                                    locale: ar,
+                                  })}
+                                </td>
+                                <td className="p-2">
+                                  {courses.find(c => c.id === record.course_id)?.name ||
+                                    'غير معروف'}
                                 </td>
                                 <td className="p-2">
                                   <Badge
                                     className={`${
-                                      record.status === "present"
-                                        ? "bg-green-100 text-green-800 hover:bg-green-100"
-                                        : record.status === "absent"
-                                          ? "bg-red-100 text-red-800 hover:bg-red-100"
-                                          : "bg-yellow-100 text-yellow-800 hover:bg-yellow-100"
+                                      record.status === 'present'
+                                        ? 'bg-green-100 text-green-800 hover:bg-green-100'
+                                        : record.status === 'absent'
+                                          ? 'bg-red-100 text-red-800 hover:bg-red-100'
+                                          : 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100'
                                     }`}
                                   >
-                                    {record.status === "present"
-                                      ? "حاضر"
-                                      : record.status === "absent"
-                                        ? "غائب"
-                                        : "متأخر"}
+                                    {record.status === 'present'
+                                      ? 'حاضر'
+                                      : record.status === 'absent'
+                                        ? 'غائب'
+                                        : 'متأخر'}
                                   </Badge>
                                 </td>
                               </tr>
@@ -717,7 +789,7 @@ export function StudentDashboard() {
           </>
         )}
 
-        {activeTab === "qr-scanner" && (
+        {activeTab === 'qr-scanner' && (
           <>
             <DashboardHeader heading="تسجيل الحضور" text="امسح رمز QR لتسجيل حضورك للمحاضرة" />
             <div className="mt-6 max-w-md mx-auto">
@@ -726,7 +798,7 @@ export function StudentDashboard() {
           </>
         )}
 
-        {activeTab === "reports" && (
+        {activeTab === 'reports' && (
           <>
             <DashboardHeader heading="التقارير" text="تقارير الحضور والغياب" />
 
@@ -740,17 +812,19 @@ export function StudentDashboard() {
                   <div className="space-y-4">
                     <div>
                       <h3 className="text-sm font-medium mb-2">نسبة الحضور حسب الدورة</h3>
-                      {courses.map((course) => {
-                        const courseStats = calculateCourseStats(course.id)
+                      {courses.map(course => {
+                        const courseStats = calculateCourseStats(course.id);
                         return (
                           <div key={course.id} className="mb-4">
                             <div className="flex justify-between mb-1">
                               <span className="text-sm">{course.name}</span>
-                              <span className="text-sm font-medium">{courseStats.presentPercentage}%</span>
+                              <span className="text-sm font-medium">
+                                {courseStats.presentPercentage}%
+                              </span>
                             </div>
                             <Progress value={courseStats.presentPercentage} />
                           </div>
-                        )
+                        );
                       })}
                     </div>
                   </div>
@@ -792,7 +866,7 @@ export function StudentDashboard() {
           </>
         )}
 
-        {activeTab === "profile" && (
+        {activeTab === 'profile' && (
           <>
             <DashboardHeader heading="الملف الشخصي" text="عرض وتعديل بياناتك الشخصية" />
             <ProfileSection
@@ -812,7 +886,7 @@ export function StudentDashboard() {
         <CourseDetailsDialog
           open={courseDetailsOpen}
           onOpenChange={setCourseDetailsOpen}
-          course={courses.find((c) => c.id === selectedCourseForDetails)}
+          course={courses.find(c => c.id === selectedCourseForDetails)}
           students={[user]}
           attendanceStats={calculateCourseStats(selectedCourseForDetails)}
         />
@@ -827,5 +901,5 @@ export function StudentDashboard() {
         </div>
       </footer>
     </div>
-  )
+  );
 }

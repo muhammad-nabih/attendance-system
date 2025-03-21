@@ -1,12 +1,14 @@
-"use client"
+'use client';
 
-import { useState, useEffect } from "react"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
-import * as z from "zod"
-import { Loader2, Search } from "lucide-react"
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Loader2, Search } from 'lucide-react';
+import * as z from 'zod';
 
-import { Button } from "@/components/ui/button"
+import { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -14,174 +16,187 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
-import { useToast } from "@/components/ui/use-toast"
-import { createClient } from "@/lib/supabase/client"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+} from '@/components/ui/dialog';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { useToast } from '@/components/ui/use-toast';
+
+import { createClient } from '@/lib/supabase/client';
 
 const formSchema = z.object({
   search: z.string().optional(),
-})
+});
 
 interface AddStudentDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  courseId: string
-  onSuccess?: () => void
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  courseId: string;
+  onSuccess?: () => void;
 }
 
-export function AddStudentDialog({ open, onOpenChange, courseId, onSuccess }: AddStudentDialogProps) {
-  const { toast } = useToast()
-  const [isLoading, setIsLoading] = useState(false)
-  const [allStudents, setAllStudents] = useState<any[]>([])
-  const [filteredStudents, setFilteredStudents] = useState<any[]>([])
-  const [selectedStudents, setSelectedStudents] = useState<string[]>([])
-  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null)
-  const supabase = createClient()
+export function AddStudentDialog({
+  open,
+  onOpenChange,
+  courseId,
+  onSuccess,
+}: AddStudentDialogProps) {
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
+  const [allStudents, setAllStudents] = useState<any[]>([]);
+  const [filteredStudents, setFilteredStudents] = useState<any[]>([]);
+  const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
+  const supabase = createClient();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      search: "",
+      search: '',
     },
-  })
+  });
 
   // Fetch all students when dialog opens
   useEffect(() => {
     if (open) {
-      fetchAllStudents()
+      fetchAllStudents();
     }
-  }, [open])
+  }, [open]);
 
   // Watch for search input changes and apply debounced filtering
   useEffect(() => {
     const subscription = form.watch((value, { name }) => {
-      if (name === "search") {
+      if (name === 'search') {
         // Clear any existing timeout
         if (searchTimeout) {
-          clearTimeout(searchTimeout)
+          clearTimeout(searchTimeout);
         }
 
         // Set a new timeout for debouncing
         const timeout = setTimeout(() => {
-          filterStudents(value.search || "")
-        }, 300) // 300ms delay
+          filterStudents(value.search || '');
+        }, 300); // 300ms delay
 
-        setSearchTimeout(timeout)
+        setSearchTimeout(timeout);
       }
-    })
+    });
 
-    return () => subscription.unsubscribe()
-  }, [form.watch, allStudents])
+    return () => subscription.unsubscribe();
+  }, [form.watch, allStudents]);
 
   // Clean up timeout on unmount
   useEffect(() => {
     return () => {
       if (searchTimeout) {
-        clearTimeout(searchTimeout)
+        clearTimeout(searchTimeout);
       }
-    }
-  }, [searchTimeout])
+    };
+  }, [searchTimeout]);
 
   async function fetchAllStudents() {
-    setIsLoading(true)
+    setIsLoading(true);
 
     try {
       // Get all students
       const { data: students, error: searchError } = await supabase
-        .from("users")
-        .select("id, name, email")
-        .eq("role", "student")
-        .limit(100)
+        .from('users')
+        .select('id, name, email')
+        .eq('role', 'student')
+        .limit(100);
 
-      if (searchError) throw searchError
+      if (searchError) throw searchError;
 
       // Get existing students in the course
       const { data: existingStudents, error: existingError } = await supabase
-        .from("course_students")
-        .select("student_id")
-        .eq("course_id", courseId)
+        .from('course_students')
+        .select('student_id')
+        .eq('course_id', courseId);
 
-      if (existingError) throw existingError
+      if (existingError) throw existingError;
 
       // Filter out students who are already in the course
-      const existingIds = existingStudents.map((s) => s.student_id)
-      const availableStudents = students.filter((s) => !existingIds.includes(s.id))
+      const existingIds = existingStudents.map(s => s.student_id);
+      const availableStudents = students.filter(s => !existingIds.includes(s.id));
 
-      setAllStudents(availableStudents)
-      setFilteredStudents(availableStudents)
+      setAllStudents(availableStudents);
+      setFilteredStudents(availableStudents);
     } catch (error: any) {
-      console.error("Error fetching students:", error)
+      console.error('Error fetching students:', error);
       toast({
-        variant: "destructive",
-        title: "خطأ في جلب البيانات",
-        description: error.message || "حدث خطأ أثناء جلب قائمة الطلاب",
-      })
+        variant: 'destructive',
+        title: 'خطأ في جلب البيانات',
+        description: error.message || 'حدث خطأ أثناء جلب قائمة الطلاب',
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
   }
 
   function filterStudents(searchTerm: string) {
     if (!searchTerm.trim()) {
-      setFilteredStudents(allStudents)
-      return
+      setFilteredStudents(allStudents);
+      return;
     }
 
-    const lowerSearchTerm = searchTerm.toLowerCase()
+    const lowerSearchTerm = searchTerm.toLowerCase();
     const filtered = allStudents.filter(
-      (student) =>
-        student.name.toLowerCase().includes(lowerSearchTerm) || student.email.toLowerCase().includes(lowerSearchTerm),
-    )
+      student =>
+        student.name.toLowerCase().includes(lowerSearchTerm) ||
+        student.email.toLowerCase().includes(lowerSearchTerm)
+    );
 
-    setFilteredStudents(filtered)
+    setFilteredStudents(filtered);
   }
 
   async function addSelectedStudents() {
-    setIsLoading(true)
+    setIsLoading(true);
 
     try {
       // Add selected students to the course
-      const studentsToAdd = selectedStudents.map((studentId) => ({
+      const studentsToAdd = selectedStudents.map(studentId => ({
         course_id: courseId,
         student_id: studentId,
-      }))
+      }));
 
-      const { error } = await supabase.from("course_students").insert(studentsToAdd)
+      const { error } = await supabase.from('course_students').insert(studentsToAdd);
 
-      if (error) throw error
+      if (error) throw error;
 
       toast({
-        title: "تم إضافة الطلاب بنجاح",
-        description: "تم إضافة الطلاب المحددين إلى الدورة",
-      })
+        title: 'تم إضافة الطلاب بنجاح',
+        description: 'تم إضافة الطلاب المحددين إلى الدورة',
+      });
 
-      form.reset()
-      setFilteredStudents([])
-      setAllStudents([])
-      setSelectedStudents([])
-      onOpenChange(false)
-      onSuccess?.()
+      form.reset();
+      setFilteredStudents([]);
+      setAllStudents([]);
+      setSelectedStudents([]);
+      onOpenChange(false);
+      onSuccess?.();
     } catch (error: any) {
-      console.error("Error adding students:", error)
+      console.error('Error adding students:', error);
       toast({
-        variant: "destructive",
-        title: "خطأ في إضافة الطلاب",
-        description: error.message || "حدث خطأ أثناء إضافة الطلاب إلى الدورة",
-      })
+        variant: 'destructive',
+        title: 'خطأ في إضافة الطلاب',
+        description: error.message || 'حدث خطأ أثناء إضافة الطلاب إلى الدورة',
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
   }
 
   const toggleStudentSelection = (studentId: string) => {
-    setSelectedStudents((prev) =>
-      prev.includes(studentId) ? prev.filter((id) => id !== studentId) : [...prev, studentId],
-    )
-  }
+    setSelectedStudents(prev =>
+      prev.includes(studentId) ? prev.filter(id => id !== studentId) : [...prev, studentId]
+    );
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -203,7 +218,11 @@ export function AddStudentDialog({ open, onOpenChange, courseId, onSuccess }: Ad
                   <FormControl>
                     <div className="relative">
                       <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                      <Input placeholder="اكتب اسم أو بريد إلكتروني..." className="pr-9" {...field} />
+                      <Input
+                        placeholder="اكتب اسم أو بريد إلكتروني..."
+                        className="pr-9"
+                        {...field}
+                      />
                     </div>
                   </FormControl>
                   <FormMessage />
@@ -220,11 +239,11 @@ export function AddStudentDialog({ open, onOpenChange, courseId, onSuccess }: Ad
             </div>
           ) : filteredStudents.length > 0 ? (
             <div className="space-y-2">
-              {filteredStudents.map((student) => (
+              {filteredStudents.map(student => (
                 <div
                   key={student.id}
                   className={`flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors ${
-                    selectedStudents.includes(student.id) ? "bg-primary/10" : "hover:bg-muted"
+                    selectedStudents.includes(student.id) ? 'bg-primary/10' : 'hover:bg-muted'
                   }`}
                   onClick={() => toggleStudentSelection(student.id)}
                 >
@@ -243,7 +262,9 @@ export function AddStudentDialog({ open, onOpenChange, courseId, onSuccess }: Ad
                   </div>
                   <div
                     className={`h-4 w-4 rounded-full border ${
-                      selectedStudents.includes(student.id) ? "bg-primary border-primary" : "border-input"
+                      selectedStudents.includes(student.id)
+                        ? 'bg-primary border-primary'
+                        : 'border-input'
                     }`}
                   />
                 </div>
@@ -251,13 +272,17 @@ export function AddStudentDialog({ open, onOpenChange, courseId, onSuccess }: Ad
             </div>
           ) : (
             <div className="flex items-center justify-center h-full text-muted-foreground">
-              {allStudents.length > 0 ? "لا توجد نتائج مطابقة للبحث" : "لا يوجد طلاب متاحين للإضافة"}
+              {allStudents.length > 0
+                ? 'لا توجد نتائج مطابقة للبحث'
+                : 'لا يوجد طلاب متاحين للإضافة'}
             </div>
           )}
         </ScrollArea>
 
         <div className="flex justify-between items-center">
-          <p className="text-sm text-muted-foreground">تم اختيار {selectedStudents.length} من الطلاب</p>
+          <p className="text-sm text-muted-foreground">
+            تم اختيار {selectedStudents.length} من الطلاب
+          </p>
           <Button
             variant="outline"
             size="sm"
@@ -269,7 +294,10 @@ export function AddStudentDialog({ open, onOpenChange, courseId, onSuccess }: Ad
         </div>
 
         <DialogFooter>
-          <Button onClick={addSelectedStudents} disabled={isLoading || selectedStudents.length === 0}>
+          <Button
+            onClick={addSelectedStudents}
+            disabled={isLoading || selectedStudents.length === 0}
+          >
             {isLoading ? (
               <>
                 <Loader2 className="ml-2 h-4 w-4 animate-spin" />
@@ -282,6 +310,5 @@ export function AddStudentDialog({ open, onOpenChange, courseId, onSuccess }: Ad
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
-

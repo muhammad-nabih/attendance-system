@@ -1,56 +1,66 @@
 // Attendance code generator component
 
-"use client"
+'use client';
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Label } from "@/components/ui/label"
-import { Clipboard, Check, QrCode } from "lucide-react"
-import { useToast } from "@/components/ui/use-toast"
-import { createClient } from "@/lib/supabase/client"
+import { Check, Clipboard, QrCode } from 'lucide-react';
 
+import { useState } from 'react';
+
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { useToast } from '@/components/ui/use-toast';
+
+import { createClient } from '@/lib/supabase/client';
+
+// Attendance code generator component
 
 interface AttendanceCodeGeneratorProps {
   courses: {
-    id: string
-    name: string
-  }[]
+    id: string;
+    name: string;
+  }[];
 }
 
 export function AttendanceCodeGenerator({ courses }: AttendanceCodeGeneratorProps) {
-  const { toast } = useToast()
-  const [selectedCourse, setSelectedCourse] = useState("")
-  const [sessionId, setSessionId] = useState("1")
-  const [copied, setCopied] = useState(false)
-  const [isGenerating, setIsGenerating] = useState(false)
-  const [generatedCode, setGeneratedCode] = useState("")
-const supabase = createClient()
+  const { toast } = useToast();
+  const [selectedCourse, setSelectedCourse] = useState('');
+  const [sessionId, setSessionId] = useState('1');
+  const [copied, setCopied] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generatedCode, setGeneratedCode] = useState('');
+  const supabase = createClient();
   // Obtener la fecha actual en formato YYYY-MM-DD
-  const today = new Date().toISOString().split("T")[0]
+  const today = new Date().toISOString().split('T')[0];
 
   // Generar un código de sesión único
   const generateSessionCode = async () => {
     if (!selectedCourse) {
       toast({
-        variant: "destructive",
-        title: "خطأ",
-        description: "الرجاء اختيار المادة أولاً",
-      })
-      return
+        variant: 'destructive',
+        title: 'خطأ',
+        description: 'الرجاء اختيار المادة أولاً',
+      });
+      return;
     }
 
-    setIsGenerating(true)
+    setIsGenerating(true);
 
     try {
       // Generar un código aleatorio de 6 dígitos
-      const randomCode = Math.floor(100000 + Math.random() * 900000).toString()
-      const sessionCode = `${randomCode}`
+      const randomCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const sessionCode = `${randomCode}`;
 
       // Guardar la sesión en la base de datos
       const { data, error } = await supabase
-        .from("sessions")
+        .from('sessions')
         .insert({
           code: sessionCode,
           course_id: selectedCourse,
@@ -59,40 +69,40 @@ const supabase = createClient()
           created_by: (await supabase.auth.getUser()).data.user?.id,
           expires_at: new Date(Date.now() + 3600000).toISOString(), // Expira en 1 hora
         })
-        .select()
+        .select();
 
-      if (error) throw error
+      if (error) throw error;
 
-      setGeneratedCode(sessionCode)
+      setGeneratedCode(sessionCode);
       toast({
-        title: "تم إنشاء الرمز بنجاح",
-        description: "يمكن للطلاب استخدام هذا الرمز لتسجيل الحضور",
-      })
+        title: 'تم إنشاء الرمز بنجاح',
+        description: 'يمكن للطلاب استخدام هذا الرمز لتسجيل الحضور',
+      });
     } catch (error: any) {
-      console.error("Error generating session code:", error)
+      console.error('Error generating session code:', error);
       toast({
-        variant: "destructive",
-        title: "خطأ في إنشاء الرمز",
-        description: error.message || "حدث خطأ أثناء إنشاء رمز الجلسة، يرجى المحاولة مرة أخرى",
-      })
+        variant: 'destructive',
+        title: 'خطأ في إنشاء الرمز',
+        description: error.message || 'حدث خطأ أثناء إنشاء رمز الجلسة، يرجى المحاولة مرة أخرى',
+      });
     } finally {
-      setIsGenerating(false)
+      setIsGenerating(false);
     }
-  }
+  };
 
   const handleCopyCode = () => {
-    if (!generatedCode) return
+    if (!generatedCode) return;
 
-    navigator.clipboard.writeText(generatedCode)
-    setCopied(true)
+    navigator.clipboard.writeText(generatedCode);
+    setCopied(true);
 
     toast({
-      title: "تم النسخ",
-      description: "تم نسخ رمز الحضور إلى الحافظة",
-    })
+      title: 'تم النسخ',
+      description: 'تم نسخ رمز الحضور إلى الحافظة',
+    });
 
-    setTimeout(() => setCopied(false), 2000)
-  }
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <Card className="w-full max-w-md mx-auto">
@@ -108,7 +118,7 @@ const supabase = createClient()
               <SelectValue placeholder="اختر المادة" />
             </SelectTrigger>
             <SelectContent>
-              {courses.map((course) => (
+              {courses.map(course => (
                 <SelectItem key={course.id} value={course.id}>
                   {course.name}
                 </SelectItem>
@@ -133,8 +143,12 @@ const supabase = createClient()
           </Select>
         </div>
 
-        <Button className="w-full" onClick={generateSessionCode} disabled={isGenerating || !selectedCourse}>
-          {isGenerating ? "جاري إنشاء الرمز..." : "إنشاء رمز الحضور"}
+        <Button
+          className="w-full"
+          onClick={generateSessionCode}
+          disabled={isGenerating || !selectedCourse}
+        >
+          {isGenerating ? 'جاري إنشاء الرمز...' : 'إنشاء رمز الحضور'}
         </Button>
 
         {generatedCode && (
@@ -153,16 +167,22 @@ const supabase = createClient()
                 <div className="flex-1 p-2 border rounded-l-md bg-muted font-mono text-xl text-center overflow-x-auto whitespace-nowrap">
                   {generatedCode}
                 </div>
-                <Button variant="outline" size="icon" className="rounded-l-none" onClick={handleCopyCode}>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="rounded-l-none"
+                  onClick={handleCopyCode}
+                >
                   {copied ? <Check className="h-4 w-4" /> : <Clipboard className="h-4 w-4" />}
                 </Button>
               </div>
-              <p className="text-sm text-muted-foreground">يمكن للطلاب إدخال هذا الرمز لتسجيل حضورهم</p>
+              <p className="text-sm text-muted-foreground">
+                يمكن للطلاب إدخال هذا الرمز لتسجيل حضورهم
+              </p>
             </div>
           </div>
         )}
       </CardContent>
     </Card>
-  )
+  );
 }
-

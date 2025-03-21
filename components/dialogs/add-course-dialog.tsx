@@ -1,12 +1,13 @@
-"use client"
+'use client';
 
-import { useState } from "react"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
-import * as z from "zod"
-import { Loader2 } from "lucide-react"
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Loader2 } from 'lucide-react';
+import * as z from 'zod';
 
-import { Button } from "@/components/ui/button"
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -14,74 +15,82 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
-import { useToast } from "@/components/ui/use-toast"
-import { createClient } from "@/lib/supabase/client"
+} from '@/components/ui/dialog';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { useToast } from '@/components/ui/use-toast';
+
+import { createClient } from '@/lib/supabase/client';
 
 const formSchema = z.object({
   name: z.string().min(2, {
-    message: "يجب أن يكون اسم الدورة حرفين على الأقل",
+    message: 'يجب أن يكون اسم الدورة حرفين على الأقل',
   }),
-})
+});
 
 interface AddCourseDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onSuccess?: () => void
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSuccess?: () => void;
 }
 
 export function AddCourseDialog({ open, onOpenChange, onSuccess }: AddCourseDialogProps) {
-  const { toast } = useToast()
-  const [isLoading, setIsLoading] = useState(false)
-  const supabase = createClient()
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
+  const supabase = createClient();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: "",
+      name: '',
     },
-  })
+  });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    setIsLoading(true)
+    setIsLoading(true);
 
     try {
       // Get the current user
       const {
         data: { user },
         error: userError,
-      } = await supabase.auth.getUser()
-      if (userError) throw userError
+      } = await supabase.auth.getUser();
+      if (userError) throw userError;
 
       // Insert the new course
-      const { error: courseError } = await supabase.from("courses").insert([
+      const { error: courseError } = await supabase.from('courses').insert([
         {
           name: values.name,
           doctor_id: user?.id,
         },
-      ])
+      ]);
 
-      if (courseError) throw courseError
+      if (courseError) throw courseError;
 
       toast({
-        title: "تم إنشاء الدورة بنجاح",
-        description: "تم إضافة الدورة الجديدة إلى قائمة دوراتك",
-      })
+        title: 'تم إنشاء الدورة بنجاح',
+        description: 'تم إضافة الدورة الجديدة إلى قائمة دوراتك',
+      });
 
-      form.reset()
-      onOpenChange(false)
-      onSuccess?.()
+      form.reset();
+      onOpenChange(false);
+      onSuccess?.();
     } catch (error: any) {
-      console.error("Error adding course:", error)
+      console.error('Error adding course:', error);
       toast({
-        variant: "destructive",
-        title: "خطأ في إنشاء الدورة",
-        description: error.message || "حدث خطأ أثناء إنشاء الدورة، يرجى المحاولة مرة أخرى",
-      })
+        variant: 'destructive',
+        title: 'خطأ في إنشاء الدورة',
+        description: error.message || 'حدث خطأ أثناء إنشاء الدورة، يرجى المحاولة مرة أخرى',
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
   }
 
@@ -90,7 +99,9 @@ export function AddCourseDialog({ open, onOpenChange, onSuccess }: AddCourseDial
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>إضافة دورة جديدة</DialogTitle>
-          <DialogDescription>قم بإضافة دورة جديدة إلى قائمة الدورات التي تقوم بتدريسها</DialogDescription>
+          <DialogDescription>
+            قم بإضافة دورة جديدة إلى قائمة الدورات التي تقوم بتدريسها
+          </DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -115,7 +126,7 @@ export function AddCourseDialog({ open, onOpenChange, onSuccess }: AddCourseDial
                     جاري الإنشاء...
                   </>
                 ) : (
-                  "إنشاء الدورة"
+                  'إنشاء الدورة'
                 )}
               </Button>
             </DialogFooter>
@@ -123,6 +134,5 @@ export function AddCourseDialog({ open, onOpenChange, onSuccess }: AddCourseDial
         </Form>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
-

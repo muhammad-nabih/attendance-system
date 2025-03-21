@@ -1,226 +1,250 @@
-"use client"
+'use client';
 
-import { useState, useRef } from "react"
-import { QRCodeSVG } from "qrcode.react"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Label } from "@/components/ui/label"
-import { Input } from "@/components/ui/input"
-import { createClient } from "@/lib/supabase/client"
-import { useToast } from "@/components/ui/use-toast"
-import { Loader2, Copy, Share2, Download } from "lucide-react"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Copy, Download, Loader2, Share2 } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
+
+import { useRef, useState } from 'react';
+
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { useToast } from '@/components/ui/use-toast';
+
+import { createClient } from '@/lib/supabase/client';
 
 interface QRCodeGeneratorProps {
-  courses: any[]
-  onSessionCreated?: () => void
-  userId?: string
+  courses: any[];
+  onSessionCreated?: () => void;
+  userId?: string;
 }
 
 export function QRCodeGenerator({ courses, onSessionCreated, userId }: QRCodeGeneratorProps) {
-  const { toast } = useToast()
-  const supabase = createClient()
-  const [selectedCourse, setSelectedCourse] = useState("")
-  const [sessionNumber, setSessionNumber] = useState("")
-  const [qrValue, setQrValue] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-  const [sessionId, setSessionId] = useState("")
-  const [expiryTime, setExpiryTime] = useState(30) // Default 30 minutes
-  const qrCodeRef = useRef<SVGSVGElement>(null)
+  const { toast } = useToast();
+  const supabase = createClient();
+  const [selectedCourse, setSelectedCourse] = useState('');
+  const [sessionNumber, setSessionNumber] = useState('');
+  const [qrValue, setQrValue] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [sessionId, setSessionId] = useState('');
+  const [expiryTime, setExpiryTime] = useState(30); // Default 30 minutes
+  const qrCodeRef = useRef<SVGSVGElement>(null);
 
   const generateQRCode = async () => {
     if (!selectedCourse || !sessionNumber) {
       toast({
-        variant: "destructive",
-        title: "خطأ",
-        description: "يرجى اختيار الدورة ورقم المحاضرة",
-      })
-      return
+        variant: 'destructive',
+        title: 'خطأ',
+        description: 'يرجى اختيار الدورة ورقم المحاضرة',
+      });
+      return;
     }
 
     if (!userId) {
       toast({
-        variant: "destructive",
-        title: "خطأ",
-        description: "لم يتم العثور على معرف المستخدم",
-      })
-      return
+        variant: 'destructive',
+        title: 'خطأ',
+        description: 'لم يتم العثور على معرف المستخدم',
+      });
+      return;
     }
 
-    setIsLoading(true)
+    setIsLoading(true);
 
     try {
       // التحقق من وجود محاضرة بنفس الرقم لهذه الدورة
       const { data: existingSessions, error: checkError } = await supabase
-        .from("sessions")
-        .select("*")
-        .eq("course_id", selectedCourse)
-        .eq("session_number", Number.parseInt(sessionNumber))
-        .eq("is_active", true)
+        .from('sessions')
+        .select('*')
+        .eq('course_id', selectedCourse)
+        .eq('session_number', Number.parseInt(sessionNumber))
+        .eq('is_active', true);
 
-      if (checkError) throw checkError
+      if (checkError) throw checkError;
 
       if (existingSessions && existingSessions.length > 0) {
         // المحاضرة موجودة، استخدم الرمز الخاص بها
-        const session = existingSessions[0]
-        setQrValue(session.code)
-        setSessionId(session.id)
+        const session = existingSessions[0];
+        setQrValue(session.code);
+        setSessionId(session.id);
 
         toast({
-          title: "تم استخدام رمز موجود",
+          title: 'تم استخدام رمز موجود',
           description: `تم استخدام رمز QR للمحاضرة رقم ${sessionNumber} الموجودة مسبقاً`,
-        })
+        });
       } else {
         // إنشاء محاضرة جديدة
-        const code = Math.random().toString(36).substring(2, 10).toUpperCase()
-        const now = new Date()
+        const code = Math.random().toString(36).substring(2, 10).toUpperCase();
+        const now = new Date();
 
         // حساب وقت انتهاء الصلاحية (الوقت الحالي + مدة الصلاحية بالدقائق)
-        const expiryDate = new Date(now.getTime() + expiryTime * 60 * 1000)
+        const expiryDate = new Date(now.getTime() + expiryTime * 60 * 1000);
 
         const { data: session, error: insertError } = await supabase
-          .from("sessions")
+          .from('sessions')
           .insert({
             course_id: selectedCourse,
             session_number: Number.parseInt(sessionNumber),
             code,
-            date: now.toISOString().split("T")[0],
+            date: now.toISOString().split('T')[0],
             expires_at: expiryDate.toISOString(),
             is_active: true,
             created_by: userId,
           })
           .select()
-          .single()
+          .single();
 
-        if (insertError) throw insertError
+        if (insertError) throw insertError;
 
-        setQrValue(code)
-        setSessionId(session.id)
+        setQrValue(code);
+        setSessionId(session.id);
 
         toast({
-          title: "تم إنشاء رمز QR",
+          title: 'تم إنشاء رمز QR',
           description: `تم إنشاء رمز QR للمحاضرة رقم ${sessionNumber} بنجاح`,
-        })
+        });
 
         // استدعاء الدالة المرجعية إذا تم توفيرها
         if (onSessionCreated) {
-          onSessionCreated()
+          onSessionCreated();
         }
       }
     } catch (error: any) {
-      console.error("Error generating QR code:", error)
+      console.error('Error generating QR code:', error);
       toast({
-        variant: "destructive",
-        title: "خطأ في إنشاء رمز QR",
-        description: error.message || "حدث خطأ أثناء إنشاء رمز QR",
-      })
+        variant: 'destructive',
+        title: 'خطأ في إنشاء رمز QR',
+        description: error.message || 'حدث خطأ أثناء إنشاء رمز QR',
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const deactivateSession = async () => {
-    if (!sessionId) return
+    if (!sessionId) return;
 
-    setIsLoading(true)
+    setIsLoading(true);
 
     try {
-      const { error } = await supabase.from("sessions").update({ is_active: false }).eq("id", sessionId)
+      const { error } = await supabase
+        .from('sessions')
+        .update({ is_active: false })
+        .eq('id', sessionId);
 
-      if (error) throw error
+      if (error) throw error;
 
-      setQrValue("")
-      setSessionId("")
+      setQrValue('');
+      setSessionId('');
 
       toast({
-        title: "تم إيقاف المحاضرة",
-        description: "تم إيقاف المحاضرة بنجاح ولن يتمكن الطلاب من تسجيل الحضور",
-      })
+        title: 'تم إيقاف المحاضرة',
+        description: 'تم إيقاف المحاضرة بنجاح ولن يتمكن الطلاب من تسجيل الحضور',
+      });
 
       // استدعاء الدالة المرجعية إذا تم توفيرها
       if (onSessionCreated) {
-        onSessionCreated()
+        onSessionCreated();
       }
     } catch (error: any) {
-      console.error("Error deactivating session:", error)
+      console.error('Error deactivating session:', error);
       toast({
-        variant: "destructive",
-        title: "خطأ في إيقاف المحاضرة",
-        description: error.message || "حدث خطأ أثناء إيقاف المحاضرة",
-      })
+        variant: 'destructive',
+        title: 'خطأ في إيقاف المحاضرة',
+        description: error.message || 'حدث خطأ أثناء إيقاف المحاضرة',
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   // نسخ الكود إلى الحافظة
   const copyCodeToClipboard = () => {
-    if (!qrValue) return
+    if (!qrValue) return;
 
     navigator.clipboard
       .writeText(qrValue)
       .then(() => {
         toast({
-          title: "تم النسخ",
-          description: "تم نسخ الرمز إلى الحافظة بنجاح",
-        })
+          title: 'تم النسخ',
+          description: 'تم نسخ الرمز إلى الحافظة بنجاح',
+        });
       })
-      .catch((error) => {
-        console.error("Error copying code:", error)
+      .catch(error => {
+        console.error('Error copying code:', error);
         toast({
-          variant: "destructive",
-          title: "خطأ في النسخ",
-          description: "حدث خطأ أثناء نسخ الرمز إلى الحافظة",
-        })
-      })
-  }
+          variant: 'destructive',
+          title: 'خطأ في النسخ',
+          description: 'حدث خطأ أثناء نسخ الرمز إلى الحافظة',
+        });
+      });
+  };
 
   // تنزيل رمز QR كصورة
   const downloadQRCode = () => {
-    if (!qrCodeRef.current) return
+    if (!qrCodeRef.current) return;
 
-    const svg = qrCodeRef.current
-    const svgData = new XMLSerializer().serializeToString(svg)
-    const canvas = document.createElement("canvas")
-    const ctx = canvas.getContext("2d")
-    const img = new Image()
+    const svg = qrCodeRef.current;
+    const svgData = new XMLSerializer().serializeToString(svg);
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
 
     img.onload = () => {
-      canvas.width = img.width
-      canvas.height = img.height
-      ctx?.drawImage(img, 0, 0)
-      const pngFile = canvas.toDataURL("image/png")
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx?.drawImage(img, 0, 0);
+      const pngFile = canvas.toDataURL('image/png');
 
       // إنشاء رابط تنزيل
-      const downloadLink = document.createElement("a")
-      downloadLink.download = `qr-code-${qrValue}.png`
-      downloadLink.href = pngFile
-      downloadLink.click()
-    }
+      const downloadLink = document.createElement('a');
+      downloadLink.download = `qr-code-${qrValue}.png`;
+      downloadLink.href = pngFile;
+      downloadLink.click();
+    };
 
-    img.src = "data:image/svg+xml;base64," + btoa(svgData)
-  }
+    img.src = 'data:image/svg+xml;base64,' + btoa(svgData);
+  };
 
   // مشاركة الرمز عبر وسائل التواصل الاجتماعي
   const shareCode = (platform: string) => {
-    if (!qrValue) return
+    if (!qrValue) return;
 
-    const courseName = courses.find((c) => c.id === selectedCourse)?.name || "الدورة"
-    const text = `رمز الحضور للمحاضرة رقم ${sessionNumber} في ${courseName}: ${qrValue}`
+    const courseName = courses.find(c => c.id === selectedCourse)?.name || 'الدورة';
+    const text = `رمز الحضور للمحاضرة رقم ${sessionNumber} في ${courseName}: ${qrValue}`;
 
-    let url = ""
+    let url = '';
 
     switch (platform) {
-      case "whatsapp":
-        url = `https://wa.me/?text=${encodeURIComponent(text)}`
-        break
-      case "telegram":
-        url = `https://t.me/share/url?url=${encodeURIComponent(window.location.href)}&text=${encodeURIComponent(text)}`
-        break
-      case "email":
-        url = `mailto:?subject=${encodeURIComponent(`رمز الحضور للمحاضرة رقم ${sessionNumber}`)}&body=${encodeURIComponent(text)}`
-        break
+      case 'whatsapp':
+        url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+        break;
+      case 'telegram':
+        url = `https://t.me/share/url?url=${encodeURIComponent(window.location.href)}&text=${encodeURIComponent(text)}`;
+        break;
+      case 'email':
+        url = `mailto:?subject=${encodeURIComponent(`رمز الحضور للمحاضرة رقم ${sessionNumber}`)}&body=${encodeURIComponent(text)}`;
+        break;
       default:
         // مشاركة عامة باستخدام Web Share API إذا كانت متوفرة
         if (navigator.share) {
@@ -229,16 +253,16 @@ export function QRCodeGenerator({ courses, onSessionCreated, userId }: QRCodeGen
               title: `رمز الحضور للمحاضرة رقم ${sessionNumber}`,
               text: text,
             })
-            .catch(console.error)
-          return
+            .catch(console.error);
+          return;
         }
     }
 
     // فتح الرابط في نافذة جديدة
     if (url) {
-      window.open(url, "_blank")
+      window.open(url, '_blank');
     }
-  }
+  };
 
   return (
     <Card>
@@ -256,7 +280,7 @@ export function QRCodeGenerator({ courses, onSessionCreated, userId }: QRCodeGen
                   <SelectValue placeholder="اختر الدورة" />
                 </SelectTrigger>
                 <SelectContent>
-                  {courses.map((course) => (
+                  {courses.map(course => (
                     <SelectItem key={course.id} value={course.id}>
                       {course.name}
                     </SelectItem>
@@ -271,7 +295,7 @@ export function QRCodeGenerator({ courses, onSessionCreated, userId }: QRCodeGen
                 type="number"
                 min="1"
                 value={sessionNumber}
-                onChange={(e) => setSessionNumber(e.target.value)}
+                onChange={e => setSessionNumber(e.target.value)}
                 placeholder="أدخل رقم المحاضرة"
               />
             </div>
@@ -285,7 +309,7 @@ export function QRCodeGenerator({ courses, onSessionCreated, userId }: QRCodeGen
               min="5"
               max="120"
               value={expiryTime}
-              onChange={(e) => setExpiryTime(Number.parseInt(e.target.value) || 30)}
+              onChange={e => setExpiryTime(Number.parseInt(e.target.value) || 30)}
               placeholder="مدة صلاحية الرمز"
             />
             <p className="text-xs text-muted-foreground">
@@ -319,10 +343,18 @@ export function QRCodeGenerator({ courses, onSessionCreated, userId }: QRCodeGen
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent>
-                    <DropdownMenuItem onClick={() => shareCode("whatsapp")}>واتساب</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => shareCode("telegram")}>تلجرام</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => shareCode("email")}>البريد الإلكتروني</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => shareCode("other")}>مشاركة أخرى</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => shareCode('whatsapp')}>
+                      واتساب
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => shareCode('telegram')}>
+                      تلجرام
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => shareCode('email')}>
+                      البريد الإلكتروني
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => shareCode('other')}>
+                      مشاركة أخرى
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
@@ -354,6 +386,5 @@ export function QRCodeGenerator({ courses, onSessionCreated, userId }: QRCodeGen
         </Button>
       </CardFooter>
     </Card>
-  )
+  );
 }
-

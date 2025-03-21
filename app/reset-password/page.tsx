@@ -1,48 +1,50 @@
-"use client"
+'use client';
 
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
-import { ResetPasswordForm } from "@/components/reset-password-form"
-import { Card, CardContent } from "@/components/ui/card"
-import { useToast } from "@/components/ui/use-toast"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
+import { useEffect, useState } from 'react';
+
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+
+import { ResetPasswordForm } from '@/components/reset-password-form';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { useToast } from '@/components/ui/use-toast';
 
 export default function ResetPasswordPage() {
-  const router = useRouter()
-  const { toast } = useToast()
-  const [isValidToken, setIsValidToken] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
+  const router = useRouter();
+  const { toast } = useToast();
+  const [isValidToken, setIsValidToken] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     // طباعة الهاش للتصحيح
-    console.log("Hash:", window.location.hash)
+    console.log('Hash:', window.location.hash);
 
     // إضافة تأخير صغير للتأكد من تحميل الهاش بالكامل
     setTimeout(() => {
       // التحقق من وجود رمز في عنوان URL
-      const hash = window.location.hash.substring(1)
-      const query = new URLSearchParams(hash)
-      const accessToken = query.get("access_token")
-      const refreshToken = query.get("refresh_token")
+      const hash = window.location.hash.substring(1);
+      const query = new URLSearchParams(hash);
+      const accessToken = query.get('access_token');
+      const refreshToken = query.get('refresh_token');
 
-      console.log("Access Token:", accessToken ? "موجود" : "غير موجود")
-      console.log("Refresh Token:", refreshToken ? "موجود" : "غير موجود")
+      console.log('Access Token:', accessToken ? 'موجود' : 'غير موجود');
+      console.log('Refresh Token:', refreshToken ? 'موجود' : 'غير موجود');
 
       if (!accessToken || !refreshToken) {
         toast({
-          variant: "destructive",
-          title: "رابط غير صالح",
-          description: "الرابط الذي استخدمته غير صالح أو منتهي الصلاحية. يرجى طلب رابط جديد.",
-        })
-        setIsValidToken(false)
+          variant: 'destructive',
+          title: 'رابط غير صالح',
+          description: 'الرابط الذي استخدمته غير صالح أو منتهي الصلاحية. يرجى طلب رابط جديد.',
+        });
+        setIsValidToken(false);
       } else {
-        setIsValidToken(true)
+        setIsValidToken(true);
       }
 
-      setIsLoading(false)
-    }, 500)
-  }, [toast])
+      setIsLoading(false);
+    }, 500);
+  }, [toast]);
 
   if (isLoading) {
     return (
@@ -55,7 +57,7 @@ export default function ResetPasswordPage() {
           </CardContent>
         </Card>
       </div>
-    )
+    );
   }
 
   if (!isValidToken) {
@@ -75,7 +77,7 @@ export default function ResetPasswordPage() {
           </CardContent>
         </Card>
       </div>
-    )
+    );
   }
 
   return (
@@ -86,5 +88,5 @@ export default function ResetPasswordPage() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

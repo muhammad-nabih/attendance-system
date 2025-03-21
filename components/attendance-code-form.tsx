@@ -1,127 +1,138 @@
-"use client"
+'use client';
 
-import type React from "react"
+import { createBrowserClient } from '@supabase/ssr';
+import { Loader2 } from 'lucide-react';
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { useToast } from "@/components/ui/use-toast"
-import { Loader2 } from "lucide-react"
-import { createBrowserClient } from "@supabase/ssr"
+import type React from 'react';
+import { useState } from 'react';
+
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { useToast } from '@/components/ui/use-toast';
 
 interface AttendanceCodeFormProps {
-  studentId: string
+  studentId: string;
 }
 
 export function AttendanceCodeForm({ studentId }: AttendanceCodeFormProps) {
-  const [sessionCode, setSessionCode] = useState("")
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const { toast } = useToast()
+  const [sessionCode, setSessionCode] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toast } = useToast();
 
   // استخدام createBrowserClient مباشرة بدلاً من استدعاء createClient
-  const supabase = createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_KEY!)
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_KEY!
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
     if (!sessionCode.trim()) {
       toast({
-        variant: "destructive",
-        title: "خطأ",
-        description: "الرجاء إدخال رمز الجلسة",
-      })
-      return
+        variant: 'destructive',
+        title: 'خطأ',
+        description: 'الرجاء إدخال رمز الجلسة',
+      });
+      return;
     }
 
-    setIsSubmitting(true)
+    setIsSubmitting(true);
 
     try {
       // التحقق من جلسة المستخدم
       const {
         data: { session },
-      } = await supabase.auth.getSession()
+      } = await supabase.auth.getSession();
       if (!session) {
-        throw new Error("يرجى تسجيل الدخول أولاً")
+        throw new Error('يرجى تسجيل الدخول أولاً');
       }
 
       // التحقق من رمز الجلسة
       const { data: sessionData, error: sessionError } = await supabase
-        .from("sessions")
-        .select("*")
-        .eq("code", sessionCode)
-        .eq("is_active", true)
-        .gt("expires_at", new Date().toISOString())
-        .single()
+        .from('sessions')
+        .select('*')
+        .eq('code', sessionCode)
+        .eq('is_active', true)
+        .gt('expires_at', new Date().toISOString())
+        .single();
 
       if (sessionError || !sessionData) {
-        throw new Error("رمز الجلسة غير صحيح أو منتهي الصلاحية")
+        throw new Error('رمز الجلسة غير صحيح أو منتهي الصلاحية');
       }
 
       // التحقق من تسجيل الطالب في الدورة
       const { data: enrollment, error: enrollmentError } = await supabase
-        .from("course_students")
-        .select("id")
-        .eq("student_id", studentId)
-        .eq("course_id", sessionData.course_id)
-        .single()
+        .from('course_students')
+        .select('id')
+        .eq('student_id', studentId)
+        .eq('course_id', sessionData.course_id)
+        .single();
 
       if (enrollmentError || !enrollment) {
-        throw new Error("أنت غير مسجل في هذه الدورة")
+        throw new Error('أنت غير مسجل في هذه الدورة');
       }
 
       // التحقق من عدم وجود سجل حضور سابق
       const { data: existingAttendance, error: existingError } = await supabase
-        .from("attendance")
-        .select("id")
-        .eq("student_id", studentId)
-        .eq("course_id", sessionData.course_id)
-        .eq("date", sessionData.date)
-        .maybeSingle()
+        .from('attendance')
+        .select('id')
+        .eq('student_id', studentId)
+        .eq('course_id', sessionData.course_id)
+        .eq('date', sessionData.date)
+        .maybeSingle();
 
       if (existingAttendance) {
-        throw new Error("تم تسجيل حضورك مسبقاً لهذه الجلسة")
+        throw new Error('تم تسجيل حضورك مسبقاً لهذه الجلسة');
       }
 
       // تسجيل الحضور
-      console.log("Inserting attendance record:", {
+      console.log('Inserting attendance record:', {
         student_id: studentId,
         course_id: sessionData.course_id,
         date: sessionData.date,
-        status: "present",
-      })
+        status: 'present',
+      });
 
-      const { error: attendanceError } = await supabase.from("attendance").insert([
+      const { error: attendanceError } = await supabase.from('attendance').insert([
         {
           student_id: studentId,
           course_id: sessionData.course_id,
           date: sessionData.date,
-          status: "present",
+          status: 'present',
         },
-      ])
+      ]);
 
       if (attendanceError) {
-        console.error("Attendance insert error:", attendanceError)
-        throw new Error(`خطأ في تسجيل الحضور: ${attendanceError.message}`)
+        console.error('Attendance insert error:', attendanceError);
+        throw new Error(`خطأ في تسجيل الحضور: ${attendanceError.message}`);
       }
 
       toast({
-        title: "تم تسجيل الحضور بنجاح",
-        description: "تم تسجيل حضورك للجلسة بنجاح",
-      })
+        title: 'تم تسجيل الحضور بنجاح',
+        description: 'تم تسجيل حضورك للجلسة بنجاح',
+      });
 
-      setSessionCode("")
+      setSessionCode('');
     } catch (error: any) {
-      console.error("Error recording attendance:", error)
+      console.error('Error recording attendance:', error);
       toast({
-        variant: "destructive",
-        title: "خطأ في تسجيل الحضور",
-        description: error.message || "حدث خطأ أثناء تسجيل الحضور، يرجى المحاولة مرة أخرى",
-      })
+        variant: 'destructive',
+        title: 'خطأ في تسجيل الحضور',
+        description: error.message || 'حدث خطأ أثناء تسجيل الحضور، يرجى المحاولة مرة أخرى',
+      });
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   return (
     <Card>
@@ -136,7 +147,7 @@ export function AttendanceCodeForm({ studentId }: AttendanceCodeFormProps) {
               id="sessionCode"
               placeholder="أدخل رمز الجلسة"
               value={sessionCode}
-              onChange={(e) => setSessionCode(e.target.value)}
+              onChange={e => setSessionCode(e.target.value)}
               disabled={isSubmitting}
               className="text-center text-lg tracking-widest"
             />
@@ -148,7 +159,7 @@ export function AttendanceCodeForm({ studentId }: AttendanceCodeFormProps) {
                 جاري التسجيل...
               </>
             ) : (
-              "تسجيل الحضور"
+              'تسجيل الحضور'
             )}
           </Button>
         </form>
@@ -157,6 +168,5 @@ export function AttendanceCodeForm({ studentId }: AttendanceCodeFormProps) {
         يمكنك الحصول على رمز الجلسة من المحاضر
       </CardFooter>
     </Card>
-  )
+  );
 }
-

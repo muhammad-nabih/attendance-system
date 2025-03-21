@@ -1,8 +1,10 @@
-import { ForgotPasswordForm } from "@/components/forgot-password-form"
-import { ArrowRight } from "lucide-react"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { ThemeToggle } from "@/components/theme-toggle"
+import { ArrowRight } from 'lucide-react';
+
+import Link from 'next/link';
+
+import { ForgotPasswordForm } from '@/components/forgot-password-form';
+import { ThemeToggle } from '@/components/theme-toggle';
+import { Button } from '@/components/ui/button';
 
 export default function ForgotPasswordPage() {
   return (
@@ -35,6 +37,5 @@ export default function ForgotPasswordPage() {
         </div>
       </footer>
     </div>
-  )
+  );
 }
-
