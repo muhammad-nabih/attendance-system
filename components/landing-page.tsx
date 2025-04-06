@@ -13,6 +13,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 
 import { LoginForm } from '@/components/login-form';
+import TeamSection from '@/components/team-section';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 
@@ -24,7 +25,7 @@ export function LandingPage() {
 
   // Typing effect state
   const [typedText, setTypedText] = useState('');
-  const fullText = 'نظام حضور متكامل لمعهد راية';
+  const fullText =' نظام مقترح لمتابعة حضور طلاب معهد رايه';
   const [isTypingComplete, setIsTypingComplete] = useState(false);
 
   const { data: currentUser, isLoading: isUserLoading } = useQuery({
@@ -381,6 +382,8 @@ export function LandingPage() {
           </div>
         </div>
       </section>
+
+      <TeamSection />
 
       {/* قسم اتصل بنا */}
       <section id="contact" className="container py-12 md:py-24 lg:py-32 bg-muted/50 rounded-lg">
