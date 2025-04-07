@@ -114,7 +114,7 @@ export function LandingPage() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => setTheme(theme === 'system' ? 'light' : 'dark')}
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
             >
               {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
             </Button>

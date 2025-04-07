@@ -66,25 +66,12 @@ const students = [
   },
   {
     id: 6,
-    name: "",
+    name: "أحمد حامد محمد",
     specialty: "طالب في معهد رايه",
     year: "الرابعة",
-    imagePath: "",
+    imagePath: "/ahmed-hamed.jpg",
   },
-  {
-    id: 7,
-    name: "",
-    specialty: "طالب في معهد رايه",
-    year: "الرابعة",
-    imagePath: "",
-  },
-  {
-    id: 8,
-    name: "",
-    specialty: "طالب في معهد رايه",
-    year: "الرابعة",
-    imagePath: "",
-  },
+
 ];
 
 
@@ -342,7 +329,7 @@ export default function TeamSection() {
                 initial="hidden"
                 animate={isInView ? "visible" : "hidden"}
                 exit="exit"
-                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mx-auto"
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mx-auto"
               >
                 {students.map((student, index) => (
                   <motion.div
