@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useRef } from "react";
@@ -70,6 +69,13 @@ const students = [
     specialty: "طالب في معهد رايه",
     year: "الرابعة",
     imagePath: "/ahmed-hamed.jpg",
+  },
+  {
+    id: 7,
+    name: "ابراهيم السعيد ابراهيم ",
+    specialty: "طالب في معهد رايه",
+    year: "الرابعة",
+    imagePath: "/ebraheem-hamed.jpg",
   },
 
 ];
@@ -145,7 +151,7 @@ export default function TeamSection() {
   const isInView = useInView(sectionRef, { once: false, amount: 0.2 });
 
   const handleImageError = (id: string) => {
-    setImageLoadError((prev) => ({
+    setImageLoadError((prev: Record<string, boolean>) => ({
       ...prev,
       [id]: true,
     }));
@@ -232,6 +238,7 @@ export default function TeamSection() {
                 className="rounded-full text-lg py-3 px-6 font-medium data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-purple-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all duration-300"
               >
                 <span className="flex items-center gap-2">
+
                   <GraduationCap className="h-5 w-5" />
                   <span>الأساتذة</span>
                 </span>
